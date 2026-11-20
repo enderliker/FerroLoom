@@ -1,22 +1,34 @@
-//! The native mod: the launcher compiles this crate against the pinned game and calls `hooks()`.
-//! Each method of `Hooks` is one moment in the game; implement the ones the mod needs
-//! (docs/modding/src/start/writing-hooks.md). Need a moment no hook covers? See
-//! docs/modding/src/concepts/injections.md.
-pub mod bridge;
-pub mod jvm;
+extern crate self as ferroloom;
 
-use mod_api::{self, Hooks, PlayerLoggedInEvent, ServerHost, Text};
+#[cfg(not(target_arch = "wasm32"))]
+pub mod bridge;
+#[cfg(not(target_arch = "wasm32"))]
+mod horizon;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod jvm;
+pub mod settings;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod tests;
+
+use mod_api::{ClientHost, ClientTickPreEvent, Hooks, RegistrationContext, Registrar};
 
 #[derive(Default)]
 struct Mod;
 
 #[mod_api::horizon_mod]
 impl Hooks for Mod {
-    /// A player joined the server (NeoForge's `PlayerLoggedInEvent`): greet them.
-    fn player_logged_in(&self, host: &mut dyn ServerHost, event: &mut PlayerLoggedInEvent<'_>) {
-        let line = format!("ferroloom says hello, {}!", event.name);
-        if let Some(player) = host.player(event.player) {
-            let _ = player.tell(host, Text::literal(line));
-        }
+    fn register(&self, _registrar: &mut dyn Registrar, context: &RegistrationContext) {
+        #[cfg(not(target_arch = "wasm32"))]
+        horizon::register(context);
+        #[cfg(target_arch = "wasm32")]
+        let _ = context;
+    }
+
+    fn client_tick_pre(&self, host: &mut dyn ClientHost, _event: &mut ClientTickPreEvent) {
+        #[cfg(not(target_arch = "wasm32"))]
+        horizon::client_tick(host);
+        #[cfg(target_arch = "wasm32")]
+        let _ = host;
     }
 }

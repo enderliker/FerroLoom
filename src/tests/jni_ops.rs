@@ -1,30 +1,12 @@
-use ferroloom::jvm::{locate_for_test, Jvm, JvmConfig};
 use jni::objects::JValue;
-use std::path::PathBuf;
-
-fn config() -> Option<JvmConfig> {
-    let jar = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("java/ferroloom-runtime/build/libs/ferroloom-runtime.jar");
-    if !jar.exists() {
-        eprintln!("skip: build the runtime jar first (./gradlew :ferroloom-runtime:jar)");
-        return None;
-    }
-    let home = locate_for_test().ok()?;
-    Some(JvmConfig {
-        java_home: home.path,
-        classpath: vec![jar],
-        xmx_mib: 256,
-        options: vec![],
-    })
-}
 
 #[test]
 fn ping_round_trips_and_panic_becomes_a_java_exception() {
-    let Some(config) = config() else {
-        eprintln!("skip: no JDK");
+    let Some(jvm) = super::jvm() else {
+        eprintln!("skip: no JDK or runtime jar");
         return;
     };
-    let jvm = Jvm::start(&config).expect("jvm starts");
+
     let out = jvm
         .call_static(
             "dev/ferroloom/runtime/FerroNative",
