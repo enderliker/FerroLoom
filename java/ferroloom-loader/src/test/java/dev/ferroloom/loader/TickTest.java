@@ -3,6 +3,7 @@ package dev.ferroloom.loader;
 import static org.junit.jupiter.api.Assertions.*;
 
 import dev.ferroloom.api.FerroEvents;
+import dev.ferroloom.shim.GameBridge;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,7 +15,7 @@ class TickTest {
     @BeforeEach
     void reset() {
         FerroEvents.clear();
-        FerroBootstrap.failedListeners().clear();
+        GameBridge.failedListeners().clear();
         ticks.clear();
     }
 
@@ -38,7 +39,7 @@ class TickTest {
         FerroBootstrap.onTick(2, 0, 0, 0);
 
         assertEquals(List.of("second", "second"), ticks);
-        assertTrue(FerroBootstrap.failedListeners().get(0).contains("boom"),
-                FerroBootstrap.failedListeners().toString());
+        assertTrue(GameBridge.failedListeners().get(0).contains("boom"),
+                GameBridge.failedListeners().toString());
     }
 }

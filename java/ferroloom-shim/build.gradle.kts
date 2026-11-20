@@ -24,9 +24,15 @@ sourceSets {
 }
 
 tasks.compileJava { dependsOn(generateShim) }
-tasks.jar { from(zipTree(generatedJar)) }
+tasks.jar {
+    archiveBaseName.set("ferroloom-shim")
+    archiveVersion.set("")
+    from(zipTree(generatedJar))
+}
 
 dependencies {
+    implementation(project(":ferroloom-runtime"))
+    compileOnly(files(rootProject.file(".runtime/fabric/fabric-loader-0.20.1.jar")))
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

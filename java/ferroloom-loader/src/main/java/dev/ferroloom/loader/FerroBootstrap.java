@@ -1,56 +1,30 @@
 package dev.ferroloom.loader;
 
-import dev.ferroloom.api.FerroEvents;
 import dev.ferroloom.loader.remap.RemapCache;
 import dev.ferroloom.loader.remap.RemapError;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.List;
+import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.launch.knot.Knot;
-import dev.ferroloom.shim.ShimRuntime;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.ClientModInitializer;
 
-/** Starts Fabric Loader inside the JVM FerroLoom owns. Called once, from the mod's registration. */
+/**
+ * Starts Fabric Loader inside the JVM FerroLoom owns, then forwards the engine's calls to
+ * {@link dev.ferroloom.shim.GameBridge}, which Knot's class loader must own so Mixin can see the shim classes.
+ */
 public final class FerroBootstrap {
-    private static final List<String> FAILED = new ArrayList<>();
+    private static volatile ClassLoader gameLoader;
+    private static volatile Method tick;
+    private static volatile Method fov;
+    private static volatile Method setup;
 
     private FerroBootstrap() {}
-
-    /** One client tick: push the position the game thread read, then dispatch to the mods. */
-    public static void onTick(long tick, double x, double y, double z) {
-        ShimRuntime.updatePlayer(x, y, z);
-        for (FerroEvents.TickListener listener : List.copyOf(FerroEvents.TICKS)) {
-            try {
-                listener.onTick(tick, x, y, z);
-            } catch (Throwable failure) {
-                failed("tick", failure);
-                FerroEvents.TICKS.remove(listener);
-            }
-        }
-    }
-
-    /** Runs the mods' client entrypoints once, on the engine's client_setup. */
-    public static void onClientSetup() {
-        FabricLoaderImpl.INSTANCE.invokeEntrypoints("client", ClientModInitializer.class,
-                ClientModInitializer::onInitializeClient);
-    }
-
-    static void failed(String where, Throwable failure) {
-        String text = where + ": " + failure;
-        FAILED.add(text);
-        dev.ferroloom.api.FerroApi.log("listener failed " + text);
-    }
-
-    /** Test hook: listener failures seen so far. */
-    public static List<String> failedListeners() {
-        return FAILED;
-    }
 
     public static Path gameDir() {
         return Path.of(property("ferro.gameDir", "."));
@@ -95,9 +69,53 @@ public final class FerroBootstrap {
         }
         System.setProperty("fabric.modsFolder", cacheDir().toString());
 
-        new Knot(EnvType.CLIENT).init(new String[] {"--gameDir", gameDir().toString()});
+        ClassLoader loader = new Knot(EnvType.CLIENT)
+                .init(new String[] {"--gameDir", gameDir().toString()});
+        gameLoader = loader;
         FabricLoaderImpl.INSTANCE.invokeEntrypoints("main", ModInitializer.class, ModInitializer::onInitialize);
         return "";
+    }
+
+    public static void onTick(long tickNumber, double x, double y, double z) {
+        invoke(gameMethod("onTick", long.class, double.class, double.class, double.class),
+                tickNumber, x, y, z);
+    }
+
+    public static float computeFovModifier(float base, float tickDelta, boolean changingFov) {
+        Object value = invoke(gameMethod("computeFovModifier", float.class, float.class, boolean.class),
+                base, tickDelta, changingFov);
+        return value instanceof Float f ? f : base;
+    }
+
+    public static void onClientSetup() {
+        invoke(gameMethod("onClientSetup"), new Object[0]);
+    }
+
+    private static Method gameMethod(String name, Class<?>... parameters) {
+        try {
+            return Class.forName("dev.ferroloom.shim.GameBridge", true, gameLoader())
+                    .getMethod(name, parameters);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("FerroLoom: GameBridge#" + name + " is missing", e);
+        }
+    }
+
+    private static ClassLoader gameLoader() {
+        ClassLoader loader = gameLoader;
+        return loader != null ? loader : FerroBootstrap.class.getClassLoader();
+    }
+
+    private static Object invoke(Method method, Object... args) {
+        try {
+            return method.invoke(null, args);
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException runtime) throw runtime;
+            if (cause instanceof Error error) throw error;
+            throw new IllegalStateException(cause);
+        } catch (IllegalAccessException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static String property(String key, String fallback) {

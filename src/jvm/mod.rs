@@ -89,6 +89,7 @@ impl std::error::Error for JvmError {}
 pub enum Arg {
     Int(i32),
     Long(i64),
+    Float(f32),
     Double(f64),
 }
 
@@ -97,6 +98,7 @@ impl Arg {
         match self {
             Arg::Int(value) => jvalue { i: value },
             Arg::Long(value) => jvalue { j: value },
+            Arg::Float(value) => jvalue { f: value },
             Arg::Double(value) => jvalue { d: value },
         }
     }
@@ -123,6 +125,13 @@ enum Task {
         signature: String,
         args: Vec<Arg>,
         reply: Sender<Result<String, JvmError>>,
+    },
+    Float {
+        class: String,
+        method: String,
+        signature: String,
+        args: Vec<Arg>,
+        reply: Sender<Result<f32, JvmError>>,
     },
     Tick {
         tick: u64,
@@ -219,6 +228,26 @@ impl Jvm {
     ) -> Result<(), JvmError> {
         let (reply, response) = mpsc::channel();
         self.request(Task::Void {
+            class: class.to_string(),
+            method: method.to_string(),
+            signature: signature.to_string(),
+            args: args.to_vec(),
+            reply,
+        })?;
+        response.recv().map_err(|_| JvmError::Jni {
+            reason: "the JVM thread dropped the call".to_string(),
+        })?
+    }
+
+    pub fn call_static_f32(
+        &self,
+        class: &str,
+        method: &str,
+        signature: &str,
+        args: &[Arg],
+    ) -> Result<f32, JvmError> {
+        let (reply, response) = mpsc::channel();
+        self.request(Task::Float {
             class: class.to_string(),
             method: method.to_string(),
             signature: signature.to_string(),
@@ -374,6 +403,15 @@ fn execute(env: *mut JNIEnv, task: Task) {
         } => {
             let _ = reply.send(unsafe { call_string_env(env, &class, &method, &signature, &args) });
         }
+        Task::Float {
+            class,
+            method,
+            signature,
+            args,
+            reply,
+        } => {
+            let _ = reply.send(unsafe { call_float_env(env, &class, &method, &signature, &args) });
+        }
         Task::Tick { tick, reply } => {
             let _ = reply.send(unsafe {
                 call_void_env(
@@ -429,6 +467,28 @@ unsafe fn call_void_env(
     match exception {
         Some(error) => Err(error),
         None => Ok(()),
+    }
+}
+
+unsafe fn call_float_env(
+    env: *mut JNIEnv,
+    class: &str,
+    method: &str,
+    signature: &str,
+    args: &[Arg],
+) -> Result<f32, JvmError> {
+    let class = unsafe { find_class(env, class)? };
+    let method = unsafe { static_method(env, class, method, signature)? };
+    let args: Vec<jvalue> = args.iter().copied().map(Arg::as_jvalue).collect();
+    let call = unsafe { (**env).CallStaticFloatMethodA }.ok_or_else(|| JvmError::Jni {
+        reason: "CallStaticFloatMethodA is missing".to_string(),
+    })?;
+    let value = unsafe { call(env, class, method, args.as_ptr()) };
+    let exception = unsafe { take_exception(env) };
+    unsafe { delete(env, class as jobject) };
+    match exception {
+        Some(error) => Err(error),
+        None => Ok(value),
     }
 }
 

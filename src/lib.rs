@@ -13,7 +13,7 @@ pub mod settings;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;
 
-use mod_api::{ClientHost, ClientSetupEvent, ClientTickPreEvent, Hooks, RegistrationContext, Registrar};
+use mod_api::{ClientHost, ClientSetupEvent, ClientTickPreEvent, ComputeFovModifierEvent, Hooks, RegistrationContext, Registrar};
 
 #[derive(Default)]
 struct Mod;
@@ -30,6 +30,11 @@ impl Hooks for Mod {
     fn client_setup(&self, _host: &mut dyn ClientHost, _event: &mut ClientSetupEvent) {
         #[cfg(not(target_arch = "wasm32"))]
         horizon::client_setup();
+    }
+
+    fn compute_fov_modifier(&self, _host: &dyn ClientHost, event: &mut ComputeFovModifierEvent<'_>) {
+        #[cfg(not(target_arch = "wasm32"))]
+        horizon::compute_fov_modifier(event);
     }
 
     fn client_tick_pre(&self, host: &mut dyn ClientHost, _event: &mut ClientTickPreEvent) {

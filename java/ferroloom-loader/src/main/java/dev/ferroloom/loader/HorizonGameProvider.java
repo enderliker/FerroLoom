@@ -40,12 +40,12 @@ public final class HorizonGameProvider implements GameProvider {
     public boolean locateGame(FabricLauncher launcher, String[] args) {
         this.arguments = new Arguments();
         this.arguments.parse(args);
-        for (Path jar : FerroBootstrap.shimJars()) launcher.addToClassPath(jar);
         return true;
     }
 
     @Override
     public void initialize(FabricLauncher launcher) {
+        for (Path jar : FerroBootstrap.shimJars()) launcher.addToClassPath(jar);
         transformer.locateEntrypoints(launcher, FerroBootstrap.shimJars());
     }
 

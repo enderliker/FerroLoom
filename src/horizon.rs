@@ -9,12 +9,13 @@ use crate::bridge::registrations::{self, PendingRegistrations};
 use crate::bridge::upcall::{on_client_tick, TickHost};
 use crate::bridge::window::EngineWindow;
 use crate::bridge::writes::WriteQueue;
-use crate::jvm::{locate, Jvm, JvmConfig, LocateSources};
+use crate::jvm::{locate, Arg, Jvm, JvmConfig, LocateSources};
 use crate::settings::Settings;
 
 static JVM: OnceLock<Jvm> = OnceLock::new();
 static TICKS: AtomicU64 = AtomicU64::new(0);
 static REGISTRATIONS: OnceLock<PendingRegistrations> = OnceLock::new();
+static FOV_ERROR_LOGGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// The mod's own log, beside the game's files (`<instance home>/ferroloom.log`).
 fn log_line(message: &str) {
@@ -165,6 +166,27 @@ pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
         Err(error) => {
             log_line(&format!("register failed: {error}"));
             context.message(&format!("FerroLoom: {error}"));
+        }
+    }
+}
+
+pub fn compute_fov_modifier(event: &mut mod_api::ComputeFovModifierEvent<'_>) {
+    let Some(jvm) = JVM.get() else {
+        return;
+    };
+    let outcome = jvm.call_static_f32(
+        "dev/ferroloom/loader/FerroBootstrap",
+        "computeFovModifier",
+        "(FFZ)F",
+        &[Arg::Float(event.base), Arg::Float(0.0), Arg::Int(0)],
+    );
+    match outcome {
+        Ok(value) if value.is_finite() && value > 0.0 => event.modifier = value,
+        Ok(_) => {}
+        Err(error) => {
+            if !FOV_ERROR_LOGGED.swap(true, Ordering::Relaxed) {
+                log_line(&format!("compute_fov_modifier failed: {error}"));
+            }
         }
     }
 }
