@@ -2,6 +2,8 @@
 //! Each method of `Hooks` is one moment in the game; implement the ones the mod needs
 //! (docs/modding/src/start/writing-hooks.md). Need a moment no hook covers? See
 //! docs/modding/src/concepts/injections.md.
+pub mod jvm;
+
 use mod_api::{self, Hooks, PlayerLoggedInEvent, ServerHost, Text};
 
 #[derive(Default)]
