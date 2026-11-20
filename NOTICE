@@ -1,0 +1,14 @@
+FerroLoom
+Copyright 2026 the FerroLoom contributors
+
+Licensed under the Apache License, Version 2.0.
+
+This product includes software developed by third parties:
+
+- jni-rs (https://github.com/jni-rs/jni-rs), Apache-2.0 OR MIT.
+- libloading (https://github.com/nagisa/rust_libloading), ISC.
+
+Fabric Loader and Fabric API (Apache-2.0) enter with Plan 2.
+
+Minecraft is a trademark of Mojang Synergies AB. FerroLoom contains no Minecraft code,
+assets or data; those belong to Mojang and Microsoft under the Minecraft EULA.
