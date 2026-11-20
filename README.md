@@ -49,13 +49,29 @@ Ver `../docs/smoke.md` y `../tools/smoke.sh`. El proceso del juego debe heredar
 `FERROLOOM_LIB_DIR` y `JAVA_HOME`; con el launcher, fíjalos con
 `horizon-launcher instance launch <instancia> --env "NAME=value ..."`.
 
-## Limitación conocida (Tarea 12)
+## Estado: funciona en el juego
 
-El launcher rechaza el paquete al construir la instancia: su grafo fijado usa `jni 0.22.4`
-y el mod usa `jni 0.21.1`; el chequeo de `Cargo.lock` exige que el grafo del juego no
-cambie. Para arrancar en el juego hace falta adaptar el puente a `jni 0.22` (API
-`EnvUnowned`) o una excepción del launcher. El host y el puente están verificados por la
-suite y por el binario `jvm_smoke`; lo no verificado es el arranque dentro de Horizon.
+Con el mundo abierto, `~/.local/share/horizon/ferroloom.log` repite:
+
+```
+pos=-31.5,70.61999988555908,0.5 tick=1451
+tick 1451: 1 writes applied
+```
+
+Arquitectura final del puente:
+
+- La JVM se crea en un hilo dedicado (`ferroloom-jvm`) y **todo el JNI corre en ese hilo**:
+  HotSpot rechaza adjuntar los hilos del juego (`AttachCurrentThread` devuelve -1).
+- El motor comprueba la fase de carga **por hilo**, así que las lecturas (`camera()`) se hacen
+  en el hilo del juego y se empujan a Java (`FerroRuntime.setPosition`) antes de cada tick.
+- La cola de escrituras cruza al hilo de la JVM; el hilo del juego la drena al volver.
+
+El `Cargo.lock` del paquete es el del motor del juego (sus pines exactos) más `glob` y las
+identidades propias del mod. No ejecutes `native-lock --update-lock`: re-resuelve y el launcher
+rechaza el grafo.
+
+La carpeta de la instancia lee los mods nativos de `horizon-native-mods/` y el interruptor de
+`horizon-mods.txt` (`mod.ferroloom: true`). Ver `../docs/smoke.md`.
 
 ## Licencia
 

@@ -54,6 +54,16 @@ pub fn register(context: &RegistrationContext) {
         );
         return;
     };
+    let runtime_jar = lib_dir.join("ferroloom-runtime.jar");
+    if !runtime_jar.is_file() {
+        let message = format!(
+            "FerroLoom: {} not found; set FERROLOOM_LIB_DIR to the folder with ferroloom-runtime.jar",
+            runtime_jar.display()
+        );
+        log_line(&format!("register failed: {message}"));
+        context.message(&message);
+        return;
+    }
 
     log_line(&format!(
         "register: lib_dir={:?} java_home={:?} xmx={}",
@@ -86,7 +96,7 @@ pub fn register(context: &RegistrationContext) {
 
     let config = JvmConfig {
         java_home: home.path,
-        classpath: vec![lib_dir.join("ferroloom-runtime.jar")],
+        classpath: vec![runtime_jar],
         xmx_mib: settings.xmx_mib,
         options: vec![],
     };
@@ -134,7 +144,7 @@ pub fn client_tick(host: &mut dyn ClientHost) {
             ));
         }
         Ok(report) => {
-            if report.applied > 0 {
+            if report.applied > 0 && (tick < 3 || tick % 200 == 0) {
                 log_line(&format!("tick {tick}: {} writes applied", report.applied));
             }
         }

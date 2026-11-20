@@ -15,6 +15,7 @@ pub use locate::{locate, JavaHome, JavaVersion, JvmLocateError, LocateSources, M
 
 /// `JNI_CreateJavaVM` may run once per process.
 pub static CREATED: AtomicBool = AtomicBool::new(false);
+static VM_LIVE: AtomicBool = AtomicBool::new(false);
 
 const JNI_VERSION_1_8: jint = 0x0001_0008;
 
@@ -145,7 +146,9 @@ impl Jvm {
             return Err(JvmError::AlreadyCreated);
         }
         let result = Self::start_inner(config);
-        if result.is_err() {
+        if result.is_err() && !VM_LIVE.load(Ordering::SeqCst) {
+            // A failure before the VM existed can be retried; once it exists, the guard stays
+            // set because a second `JNI_CreateJavaVM` is unsupported.
             CREATED.store(false, Ordering::SeqCst);
         }
         result
@@ -274,7 +277,6 @@ fn create_and_serve(
         let _ = ready.send(Err(error));
         return Ok(());
     }
-    crate::bridge::window::set_engine_thread(std::thread::current().id());
     file_log("JVM ready (bridge thread attached)");
 
     let (task_sender, task_receiver) = mpsc::channel::<Task>();
@@ -339,6 +341,7 @@ fn create_vm(
             reason: format!("JNI_CreateJavaVM returned {code}"),
         });
     }
+    VM_LIVE.store(true, Ordering::SeqCst);
     Ok((vm as usize, penv as *mut JNIEnv, lib))
 }
 

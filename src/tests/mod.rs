@@ -11,7 +11,6 @@ mod jvm_locate;
 mod jvm_start;
 mod settings;
 mod tick_roundtrip;
-mod window;
 mod writes;
 
 /// The runtime jar must be built first: `./gradlew :ferroloom-runtime:jar`.

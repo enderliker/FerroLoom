@@ -28,10 +28,13 @@ pub fn on_client_tick(
             &[Arg::Double(x), Arg::Double(y), Arg::Double(z)],
         )?;
     }
-    with_queue(&mut *writes, || jvm.tick(tick))?;
+    let call = with_queue(&mut *writes, || jvm.tick(tick));
 
+    // Apply what Java queued even when the call itself failed.
     let mut sink = WindowSink { window };
-    Ok(writes.drain(&mut sink))
+    let report = writes.drain(&mut sink);
+    call?;
+    Ok(report)
 }
 
 struct WindowSink<'a> {

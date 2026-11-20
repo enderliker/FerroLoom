@@ -1,7 +1,7 @@
 extern crate self as ferroloom;
 
 #[cfg(not(target_arch = "wasm32"))]
-pub mod bridge;
+pub(crate) mod bridge;
 #[cfg(not(target_arch = "wasm32"))]
 mod horizon;
 #[cfg(not(target_arch = "wasm32"))]
