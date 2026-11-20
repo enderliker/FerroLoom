@@ -25,9 +25,18 @@ impl JvmConfig {
         let java_home = locate_for_test()
             .map(|home| home.path)
             .unwrap_or_default();
-        let classpath = std::env::var_os("FERROLOOM_LIB_DIR")
-            .map(|dir| vec![PathBuf::from(dir).join("ferroloom-runtime.jar")])
-            .unwrap_or_default();
+        let classpath = match std::env::var_os("FERROLOOM_LIB_DIR") {
+            Some(dir) => vec![PathBuf::from(dir).join("ferroloom-runtime.jar")],
+            None => {
+                let jar = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("java/ferroloom-runtime/build/libs/ferroloom-runtime.jar");
+                if jar.exists() {
+                    vec![jar]
+                } else {
+                    vec![]
+                }
+            }
+        };
         JvmConfig {
             java_home,
             classpath,
@@ -93,7 +102,9 @@ impl Jvm {
             .map_err(|error| JvmError::Start {
                 reason: format!("{error:?}"),
             })?;
-        Ok(Jvm { vm })
+        let jvm = Jvm { vm };
+        crate::bridge::jni::register_natives(&jvm)?;
+        Ok(jvm)
     }
 
     pub fn with_env<R>(&self, f: impl FnOnce(&mut jni::JNIEnv) -> R) -> Result<R, JvmError> {
