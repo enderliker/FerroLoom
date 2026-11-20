@@ -137,6 +137,28 @@ impl Jvm {
         })?
     }
 
+    pub fn call_static_void(
+        &self,
+        class: &str,
+        method: &str,
+        signature: &str,
+        args: &[jni::objects::JValue<'_, '_>],
+    ) -> Result<(), JvmError> {
+        self.with_env(|env| {
+            let class = find_class(env, class)?;
+            let result = env.call_static_method(&class, method, signature, args);
+            if let Some(exception) = take_exception(env) {
+                return Err(exception);
+            }
+            match result.map_err(|error| JvmError::Jni { reason: error.to_string() })? {
+                jni::objects::JValueOwned::Void => Ok(()),
+                other => Err(JvmError::Jni {
+                    reason: format!("expected a void return, got {other:?}"),
+                }),
+            }
+        })?
+    }
+
     pub fn call_static_string(
         &self,
         class: &str,

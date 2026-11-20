@@ -10,6 +10,20 @@ public final class FerroRuntime {
         return "pong";
     }
 
+    /** Runs for every client tick the host dispatches. */
+    public static void onTick(long tick) {
+        if (stopped) {
+            return;
+        }
+        double[] position = FerroNative.playerPosition();
+        if (position == null || position.length < 3) {
+            return;
+        }
+        String text =
+                "pos=" + position[0] + "," + position[1] + "," + position[2] + " tick=" + tick;
+        FerroNative.callString(3, text);
+    }
+
     /** Stops dispatching to Java. Safe to call more than once. */
     public static void shutdown() {
         stopped = true;

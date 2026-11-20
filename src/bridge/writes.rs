@@ -1,4 +1,8 @@
+use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::ptr::NonNull;
+
+use super::window::BridgeError;
 
 /// An effect Java asked for, applied at the end of the engine callback that asked for it.
 pub enum WriteOp {
@@ -19,6 +23,32 @@ pub struct DrainReport {
 pub struct WriteQueue {
     ops: VecDeque<WriteOp>,
     next_index: usize,
+}
+
+thread_local! {
+    static CURRENT: RefCell<Option<NonNull<WriteQueue>>> = const { RefCell::new(None) };
+}
+
+struct Restore(Option<NonNull<WriteQueue>>);
+
+impl Drop for Restore {
+    fn drop(&mut self) {
+        CURRENT.with(|current| *current.borrow_mut() = self.0);
+    }
+}
+
+/// Makes `queue` the destination of `enqueue_current` on this thread.
+pub fn with_queue<R>(queue: &mut WriteQueue, f: impl FnOnce() -> R) -> R {
+    let pointer = NonNull::from(queue);
+    let previous = CURRENT.with(|current| current.borrow_mut().replace(pointer));
+    let _restore = Restore(previous);
+    f()
+}
+
+pub fn enqueue_current(op: WriteOp) -> Result<(), BridgeError> {
+    let mut pointer = CURRENT.with(|current| *current.borrow()).ok_or(BridgeError::NotInCallback)?;
+    unsafe { pointer.as_mut() }.enqueue(op);
+    Ok(())
 }
 
 impl WriteQueue {

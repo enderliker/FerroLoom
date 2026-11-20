@@ -9,6 +9,7 @@ use jni::sys::{
 use jni::{JNIEnv, NativeMethod};
 
 use super::ops::Op;
+use super::writes::{self, WriteOp};
 use crate::jvm::{Jvm, JvmError};
 
 pub const FERRO_NATIVE_CLASS: &str = "dev/ferroloom/runtime/FerroNative";
@@ -72,13 +73,16 @@ fn dispatch_call(op: jint, a: jlong) -> jlong {
 unsafe extern "system" fn ferroloom_call_string(
     env: *mut RawJNIEnv,
     _class: jclass,
-    _op: jint,
+    op: jint,
     text: jstring,
 ) -> jstring {
     let outcome = catch_unwind(AssertUnwindSafe(|| {
         let mut env = unsafe { JNIEnv::from_raw(env) }.ok()?;
         let input = unsafe { JString::from_raw(text) };
         let input = env.get_string(&input).ok()?.to_string_lossy().into_owned();
+        if matches!(Op::from_i32(op), Some(Op::Log)) {
+            let _ = writes::enqueue_current(WriteOp::Log(input.clone()));
+        }
         env.new_string(input).ok().map(|value| value.into_raw())
     }));
     match outcome {
@@ -92,11 +96,24 @@ unsafe extern "system" fn ferroloom_call_string(
 }
 
 unsafe extern "system" fn ferroloom_player_position(
-    _env: *mut RawJNIEnv,
+    env: *mut RawJNIEnv,
     _class: jclass,
 ) -> jdoubleArray {
-    // Filled in by the tick round-trip task, when a read window exists.
-    std::ptr::null_mut()
+    let outcome = catch_unwind(AssertUnwindSafe(|| {
+        let env = unsafe { JNIEnv::from_raw(env) }.ok()?;
+        let [x, y, z] = crate::bridge::window::current_player_pos().ok()?;
+        let array = env.new_double_array(3).ok()?;
+        env.set_double_array_region(&array, 0, &[x, y, z]).ok()?;
+        Some(array.into_raw())
+    }));
+    match outcome {
+        Ok(Some(value)) => value,
+        Ok(None) => std::ptr::null_mut(),
+        Err(payload) => {
+            throw(env, &panic_message(payload));
+            std::ptr::null_mut()
+        }
+    }
 }
 
 fn throw(env: *mut RawJNIEnv, message: &str) {
