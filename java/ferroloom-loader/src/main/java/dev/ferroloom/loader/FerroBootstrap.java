@@ -9,6 +9,8 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.function.Consumer;
+import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.impl.FabricLoaderImpl;
@@ -83,16 +85,35 @@ public final class FerroBootstrap {
         ClassLoader loader = new Knot(EnvType.CLIENT)
                 .init(new String[] {"--gameDir", gameDir().toString()});
         gameLoader = loader;
+        installClient();
+        // Client entrypoints run here, while the Registrar still exists: the engine only accepts
+        // key declarations during Registration, and a mod normally registers its key in
+        // onInitializeClient. client_setup therefore has nothing left to invoke.
+        StringBuilder failures = new StringBuilder();
+        invokePhase("main", ModInitializer.class, ModInitializer::onInitialize, failures);
+        invokePhase("client", ClientModInitializer.class, ClientModInitializer::onInitializeClient, failures);
+        return dev.ferroloom.api.FerroRegistrations.report() + failures;
+    }
+
+    private static <T> void invokePhase(String phase, Class<T> type, Consumer<? super T> invoker,
+            StringBuilder failures) {
         try {
-            FabricLoaderImpl.INSTANCE.invokeEntrypoints("main", ModInitializer.class, ModInitializer::onInitialize);
-            return dev.ferroloom.api.FerroRegistrations.report();
+            FabricLoaderImpl.INSTANCE.invokeEntrypoints(phase, type, invoker);
         } catch (Throwable failure) {
             // Fabric runs every entrypoint and then throws the aggregate: the other mods'
             // registrations are still in the report, and the failing mod is named in the message.
             String description = dev.ferroloom.api.Errors.describe(failure).lines()
-                    .findFirst().orElse("entrypoint failure").replace('\t', ' ');
-            dev.ferroloom.api.FerroApi.log("entrypoint failed: " + description);
-            return dev.ferroloom.api.FerroRegistrations.report() + "FAILED\t" + description + "\n";
+                    .findFirst().orElse(phase + " entrypoint failure").replace('\t', ' ');
+            dev.ferroloom.api.FerroApi.log(phase + " entrypoint failed: " + description);
+            failures.append("FAILED\t").append(description).append('\n');
+        }
+    }
+
+    private static void installClient() {
+        try {
+            invoke(gameMethod("installClientNow"), new Object[0]);
+        } catch (RuntimeException absent) {
+            // An older shim installs the client lazily on its first need.
         }
     }
 

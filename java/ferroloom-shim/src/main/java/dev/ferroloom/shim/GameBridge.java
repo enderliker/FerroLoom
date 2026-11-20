@@ -5,8 +5,6 @@ import dev.ferroloom.api.FerroEvents;
 import dev.ferroloom.api.FerroRegistrations;
 import java.util.ArrayList;
 import java.util.List;
-import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
@@ -92,14 +90,9 @@ public final class GameBridge {
 
     public static void onClientSetup() {
         installClient();
-        try {
-            FabricLoaderImpl.INSTANCE.invokeEntrypoints("client", ClientModInitializer.class,
-                    ClientModInitializer::onInitializeClient);
-        } catch (Throwable failure) {
-            // A failing client entrypoint is logged with its mod and the game keeps going.
-            FAILED.add("client entrypoint: " + failure);
-            FerroApi.log("client entrypoint failed: " + dev.ferroloom.api.Errors.describe(failure));
-        }
+        // The client entrypoints already ran during registration, where their keys could reach
+        // the Registrar. This hook only records that the client half is ready.
+        FerroApi.log("client setup: entrypoints ran at registration");
     }
 
     public static List<String> failedListeners() {

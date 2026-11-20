@@ -163,6 +163,22 @@ public final class TestMods {
         return jar;
     }
 
+    /** A client-only mod whose key exists only in its client entrypoint. */
+    public static Path clientKeyJar(Path modsDir) throws IOException {
+        String source = """
+                package clientkey;
+                public final class Entry implements net.fabricmc.api.ClientModInitializer {
+                    @Override public void onInitializeClient() {
+                        int runs = Integer.parseInt(System.getProperty("test.clientkey.runs", "0")) + 1;
+                        System.setProperty("test.clientkey.runs", Integer.toString(runs));
+                        dev.ferroloom.api.FerroApi.registerKey("late", "zoom", "key.keyboard.v");
+                    }
+                }
+                """;
+        return jar(modsDir, "clientkey", "clientkey.Entry", source,
+                Map.of("client", "clientkey.Entry"), null);
+    }
+
     public static Path jar(Path modsDir, String id, String source) throws IOException {
         return jar(modsDir, id, id + ".Entry", source, Map.of("main", id + ".Entry"), null);
     }
