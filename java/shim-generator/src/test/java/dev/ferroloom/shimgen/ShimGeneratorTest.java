@@ -47,6 +47,21 @@ class ShimGeneratorTest {
     }
 
     @Test
+    void a_constructor_with_an_impl_row_calls_super_then_the_delegate() throws Exception {
+        byte[] in = Fixtures.clazz("example/Target", "java/lang/Object", null,
+                Fixtures.methods(new Fixtures.Method("<init>", "(I)V")));
+        ImplTables tables = ImplTables.of(Map.of(
+                "example/Target#<init>(I)V", new ImplTables.Impl("example/Calls", "ctor")));
+
+        byte[] out = ShimGenerator.generateClass(in, tables);
+        ClassLoader loader = Fixtures.loader(out, Fixtures.ctorCalls("example/Calls", "example/Target"));
+        Object target = loader.loadClass("example.Target").getDeclaredConstructor(int.class).newInstance(7);
+
+        assertNotNull(target);
+        assertEquals(7, loader.loadClass("example.Calls").getField("last").getInt(null));
+    }
+
+    @Test
     void fields_hierarchy_and_constructibility_are_kept() throws Exception {
         byte[] base = Fixtures.clazz("example/Base", "java/lang/Object", null, List.of());
         byte[] face = Fixtures.interfaceClazz("example/I", List.of());

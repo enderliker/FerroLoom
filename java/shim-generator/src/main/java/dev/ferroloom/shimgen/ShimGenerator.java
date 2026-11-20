@@ -146,6 +146,13 @@ public final class ShimGenerator {
         Type[] args = Type.getArgumentTypes(m.desc);
         Type ret = Type.getReturnType(m.desc);
         int slot = 0;
+        if (m.name.equals("<init>")) {
+            // A constructor must initialise `this` before anything else uses it; the delegate then
+            // receives a normal instance. The tables only target classes whose super is Object.
+            String superName = owner.superName == null ? "java/lang/Object" : owner.superName;
+            out.visitVarInsn(Opcodes.ALOAD, 0);
+            out.visitMethodInsn(Opcodes.INVOKESPECIAL, superName, "<init>", "()V", false);
+        }
         if (!isStatic) {
             out.visitVarInsn(Opcodes.ALOAD, slot);
             slot++;

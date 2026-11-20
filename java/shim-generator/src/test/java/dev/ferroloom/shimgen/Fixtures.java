@@ -110,6 +110,23 @@ final class Fixtures {
         return cw.toByteArray();
     }
 
+    /** A class holding one static {@code ctor(Target,I)V} that records its argument in {@code last}. */
+    static byte[] ctorCalls(String name, String target) {
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        cw.visit(Opcodes.V25, Opcodes.ACC_PUBLIC, name, null, "java/lang/Object", null);
+        cw.visitField(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "last", "I", null, null).visitEnd();
+        MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC, "ctor",
+                "(L" + target + ";I)V", null, null);
+        mv.visitCode();
+        mv.visitVarInsn(Opcodes.ILOAD, 1);
+        mv.visitFieldInsn(Opcodes.PUTSTATIC, name, "last", "I");
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+        cw.visitEnd();
+        return cw.toByteArray();
+    }
+
     /** A class holding one static method: {@code fov(Target,Camera,FZ)F -> 2.0f}. */
     static byte[] calls(String name, String target, String receiverDesc) {
         ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
