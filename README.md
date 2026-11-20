@@ -114,7 +114,8 @@ fov: modifier 1.0000 (base 1.0000)   # V released
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Fork the repository, add a test with your change
 and open a pull request; every commit must be signed off with the Developer Certificate of
 Origin. The design and the plans live in [docs/superpowers](docs/superpowers); the in-game check
-is in [docs/smoke.md](docs/smoke.md).
+is in [docs/smoke.md](docs/smoke.md). For questions and bug reports see [SUPPORT.md](SUPPORT.md);
+release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
