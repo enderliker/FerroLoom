@@ -48,7 +48,7 @@ pub fn register(context: &RegistrationContext) {
     let home = match found {
         Ok(home) => home,
         Err(error) => {
-            context.message(&format!("FerroLoom: {error:?}"));
+            context.message(&format!("FerroLoom: {error}"));
             return;
         }
     };
@@ -71,7 +71,7 @@ pub fn register(context: &RegistrationContext) {
             }
         }
         Err(error) => {
-            context.message(&format!("FerroLoom: {error:?}"));
+            context.message(&format!("FerroLoom: {error}"));
         }
     }
 }

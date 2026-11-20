@@ -24,6 +24,31 @@ pub enum JvmLocateError {
     Unreadable { path: PathBuf, reason: String },
 }
 
+impl std::fmt::Display for JvmLocateError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JvmLocateError::NotFound { tried } => {
+                let paths = tried
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "no JDK found; tried {paths}")
+            }
+            JvmLocateError::VersionTooOld { found, minimum } => write!(
+                f,
+                "Java {} is too old; FerroLoom needs Java {minimum} or newer",
+                found.full
+            ),
+            JvmLocateError::Unreadable { path, reason } => {
+                write!(f, "{}: {reason}", path.display())
+            }
+        }
+    }
+}
+
+impl std::error::Error for JvmLocateError {}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct LocateSources<'a> {
     pub explicit: Option<&'a Path>,

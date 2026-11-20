@@ -6,6 +6,26 @@ pub enum LibjvmError {
     LoadFailed { path: PathBuf, reason: String },
 }
 
+impl std::fmt::Display for LibjvmError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LibjvmError::NotFound { tried } => {
+                let paths = tried
+                    .iter()
+                    .map(|path| path.display().to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                write!(f, "libjvm not found; tried {paths}")
+            }
+            LibjvmError::LoadFailed { path, reason } => {
+                write!(f, "could not load {}: {reason}", path.display())
+            }
+        }
+    }
+}
+
+impl std::error::Error for LibjvmError {}
+
 const CANDIDATES: &[&str] = &[
     "lib/server/libjvm.so",
     "lib/libjvm.so",

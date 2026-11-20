@@ -57,6 +57,26 @@ pub enum JvmError {
     JavaException { class: String, message: String },
 }
 
+impl std::fmt::Display for JvmError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JvmError::AlreadyCreated => write!(f, "a JVM is already running in this process"),
+            JvmError::Locate(error) => write!(f, "{error}"),
+            JvmError::Libjvm(error) => write!(f, "{error}"),
+            JvmError::Start { reason } => write!(f, "could not create the JVM: {reason}"),
+            JvmError::Attach { reason } => {
+                write!(f, "could not attach this thread to the JVM: {reason}")
+            }
+            JvmError::Jni { reason } => write!(f, "JNI error: {reason}"),
+            JvmError::JavaException { class, message } => {
+                write!(f, "Java threw {class}: {message}")
+            }
+        }
+    }
+}
+
+impl std::error::Error for JvmError {}
+
 pub struct Jvm {
     vm: jni::JavaVM,
 }

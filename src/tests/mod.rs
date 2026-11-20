@@ -3,6 +3,7 @@ use std::sync::OnceLock;
 
 use crate::jvm::{locate_for_test, Jvm, JvmConfig};
 
+mod failures;
 mod handles;
 mod jni_ops;
 mod jvm_libjvm;
