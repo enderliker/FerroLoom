@@ -3,8 +3,8 @@
 [![CI](https://github.com/enderliker/FerroLoom/actions/workflows/ci.yml/badge.svg)](https://github.com/enderliker/FerroLoom/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A JVM host for Horizon (Minecraft 26.3 in Rust). Plan 2: real Fabric Loader, the shim, and a
-real Fabric mod.
+A JVM host for Horizon (Minecraft 26.3 in Rust). Plans 2–3: real Fabric Loader, the shim,
+FerroFabric-API, and a real third-party zoom mod running unmodified.
 
 FerroLoom ships as a native `.hmod`. At registration it finds Java, creates an embedded JVM,
 starts **the real Fabric Loader** through a `GameProvider` of its own (`horizon`) that never
@@ -15,21 +15,28 @@ launches a game, and dispatches the engine's hooks to Fabric mods loaded from it
 - JDK discovery, `libjvm` loading, one JVM per process, and all JNI on the bridge thread
   (HotSpot refuses to attach the game's threads).
 - Fabric Loader 0.20.1 embedded; it discovers the jars in `ferroloom-mods/`, verifies they use
-  the 26.3 names, and runs their `main` entrypoints at registration and `client` entrypoints at
-  `client_setup`.
+  the 26.3 names, and runs their `main` and `client` entrypoints at registration (the engine's
+  only window for key declarations), with `client_setup` recording readiness.
 - A `net.minecraft.*` shim generated with ASM from the official 26.3 jar's metadata (11,383
-  classes, 77,780 methods; bodies are FerroLoom's own or throw `FerroUnimplementedException`).
+  classes, 77,783 methods; bodies are FerroLoom's own or throw `FerroUnimplementedException`).
 - A mod's Mixin transforms a shim class: `Camera.getFov` through the `compute_fov_modifier` call
-  site.
+  site, and `Camera.calculateFov` on the live FOV path.
 - Ticks, keys, client commands and a HUD layer reach a Fabric mod; the chat and log writes it
   makes are applied at the end of the hook.
-- 26 Rust tests and 35 Java tests (runtime, loader, generator and shim).
+- A minimal **FerroFabric-API** (builtin `fabric-api` `26.3-ferro.1`) with `Event`,
+  `KeyMappingHelper` and `ClientTickEvents`, so a mod that declares `depends: fabric-api`
+  resolves and its key appears in Options > Controls.
+- **ZoomX 26.3** (MIT) runs from its untouched jar: its client entrypoint registers the zoom
+  key, its `Camera.calculateFov` mixin returns the divided FOV through the call site, and holding
+  the key changes `player.fov_modifier` from `1.0` to `0.3333` in game.
+- 29 Rust tests, 45 Java tests (runtime, loader, generator and shim) and 4 tests for the API.
 
 ## What it does not do yet
 
-- FerroFabric-API (Plan 4): mods use the `dev.ferroloom.api` development API for ticks, keys,
-  commands and the HUD; `net.minecraft.*` members outside the implemented shim throw.
-- Zoom (Plan 3).
+- The rest of FerroFabric-API (Plan 4): mods that do not depend on `fabric-api` still use the
+  `dev.ferroloom.api` development API for ticks, keys, commands and the HUD; `net.minecraft.*`
+  members outside the implemented shim throw.
+- Screen, rendering/HUD, item, registry, resource-loader and networking API modules.
 - Dedicated servers and worker hooks (v0.2).
 - Packaging and the registry (Plan 5).
 
@@ -42,6 +49,7 @@ launches a game, and dispatches the engine's hooks to Fabric mods loaded from it
 cargo test
 cargo horizon-mod check
 (cd java && ./gradlew test)
+(cd ../FerroFabric-API && ./build.sh test)   # optional: the sibling API project
 ```
 
 ## Staging and the in-game check
@@ -58,11 +66,24 @@ Evidence in `~/.local/share/horizon/ferroloom.log`:
 example: main entrypoint
 JVM ready; loader started; 1 key(s), 1 command(s), hud=true
 hud layer registered
-client setup: client entrypoints ran
+client setup: entrypoints ran at registration
 example tick=200 pos=-31.33,70.62,0.33
 ```
 
 `/ferro-hola` and the G key answer in chat, and the HUD line shows on screen.
+
+With `zoomx-26.3.jar` in `ferroloom-mods/` (its bytes untouched), the same log shows the key, the
+builtin API and the FOV change:
+
+```
+key: zoomx/zoom -> key.keyboard.v
+fabric-api: 26.3-ferro.1 initialized
+fov: modifier 0.3333 (base 1.0000)   # V held
+fov: modifier 1.0000 (base 1.0000)   # V released
+```
+
+`game_state` reports `player.fov_modifier` `0.3333` while the key is held. See
+[docs/smoke.md](docs/smoke.md) and [docs/ferrofabric-deviations.md](docs/ferrofabric-deviations.md).
 
 ## Settings
 
