@@ -35,6 +35,12 @@ public final class TestMods {
     /** Compiles {@code source} as {@code className} and jars it with {@code fabric.mod.json}. */
     public static Path jar(Path modsDir, String id, String className, String source,
             Map<String, String> entrypoints, String extraMetadata) throws IOException {
+        return jar(modsDir, id, className, source, entrypoints, extraMetadata, null);
+    }
+
+    public static Path jar(Path modsDir, String id, String className, String source,
+            Map<String, String> entrypoints, String extraMetadata, String extraDepends)
+            throws IOException {
         Path work = Files.createTempDirectory("fl-mod-" + id);
         Path classes = Files.createDirectories(work.resolve("classes"));
         Path src = work.resolve("src").resolve(className.replace('.', '/') + ".java");
@@ -50,7 +56,8 @@ public final class TestMods {
                 .reduce((a, b) -> a + "," + b).orElse("");
         String metadata = "{\"schemaVersion\":1,\"id\":\"" + id + "\",\"version\":\"1.0.0\","
                 + "\"name\":\"" + id + "\",\"environment\":\"client\",\"entrypoints\":{" + entryJson + "},"
-                + "\"depends\":{\"minecraft\":\">=26.3\",\"java\":\">=25\"}"
+                + "\"depends\":{\"minecraft\":\">=26.3\",\"java\":\">=25\""
+                + (extraDepends == null ? "" : "," + extraDepends) + "}"
                 + (extraMetadata == null ? "" : "," + extraMetadata) + "}";
 
         Path jar = Files.createDirectories(modsDir).resolve(id + ".jar");
@@ -177,6 +184,27 @@ public final class TestMods {
                 """;
         return jar(modsDir, "clientkey", "clientkey.Entry", source,
                 Map.of("client", "clientkey.Entry"), null);
+    }
+
+    /** A client mod that depends on `fabric-api` and uses KeyMappingHelper and ClientTickEvents. */
+    public static Path apiKeyJar(Path modsDir) throws IOException {
+        String source = """
+                package apimod;
+                public final class Entry implements net.fabricmc.api.ClientModInitializer {
+                    @Override public void onInitializeClient() {
+                        net.minecraft.client.KeyMapping zoom = new net.minecraft.client.KeyMapping(
+                                "key.apimod.zoom",
+                                com.mojang.blaze3d.platform.InputConstants$Type.KEYBOARD, 6, null);
+                        net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper
+                                .registerKeyMapping(zoom);
+                        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+                                .END_CLIENT_TICK.register(
+                                        client -> System.setProperty("test.apimod.ticked", "1"));
+                    }
+                }
+                """;
+        return jar(modsDir, "apimod", "apimod.Entry", source,
+                Map.of("client", "apimod.Entry"), null, "\"fabric-api\":\"*\"");
     }
 
     public static Path jar(Path modsDir, String id, String source) throws IOException {

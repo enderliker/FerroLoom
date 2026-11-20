@@ -86,6 +86,7 @@ public final class FerroBootstrap {
                 .init(new String[] {"--gameDir", gameDir().toString()});
         gameLoader = loader;
         installClient();
+        initFabricApi();
         // Client entrypoints run here, while the Registrar still exists: the engine only accepts
         // key declarations during Registration, and a mod normally registers its key in
         // onInitializeClient. client_setup therefore has nothing left to invoke.
@@ -114,6 +115,23 @@ public final class FerroBootstrap {
             invoke(gameMethod("installClientNow"), new Object[0]);
         } catch (RuntimeException absent) {
             // An older shim installs the client lazily on its first need.
+        }
+    }
+
+    /** Connects FerroFabric-API's events to the engine tick; only when a jar was configured. */
+    private static void initFabricApi() {
+        String configured = System.getProperty("ferro.apiJar");
+        if (configured == null || configured.isBlank()) return;
+        try {
+            Class<?> api = Class.forName("dev.ferroloom.fabric.impl.FerroFabricApi", true, gameLoader());
+            api.getMethod("init").invoke(null);
+            dev.ferroloom.api.FerroApi.log(
+                    "fabric-api: " + HorizonGameProvider.FABRIC_API_VERSION + " initialized");
+        } catch (ClassNotFoundException absent) {
+            dev.ferroloom.api.FerroApi.log(
+                    "fabric-api: configured but missing from Knot: " + configured);
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            dev.ferroloom.api.FerroApi.log("fabric-api: init failed: " + failure);
         }
     }
 

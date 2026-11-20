@@ -130,6 +130,9 @@ pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
             format!("-Dferro.cacheDir={}", settings.cache_dir.display()),
             format!("-Dferro.shimDir={}", lib_dir.display()),
             format!("-Dferro.gameDir={}", game_dir.display()),
+            // FerroFabric-API is a builtin mod, not part of the parent class path; the provider
+            // adds it to Knot when this jar exists.
+            format!("-Dferro.apiJar={}", lib_dir.join("ferrofabric-api.jar").display()),
         ],
     };
     match Jvm::start(&config) {

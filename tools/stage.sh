@@ -17,4 +17,14 @@ cp "$FABRIC"/asm*.jar "$LIB/"
 
 bash "$REPO/examples/example-mod/build.sh"
 cp "$REPO/examples/example-mod/build/ferroloom-example-1.0.0.jar" "$MODS/"
+
+# FerroFabric-API lives beside the repo; when present, build it and stage it as the builtin mod.
+API_DIR="$REPO/../FerroFabric-API"
+if [ -x "$API_DIR/build.sh" ]; then
+    bash "$API_DIR/build.sh" jar
+    API_JAR=$(ls "$API_DIR"/build/libs/ferrofabric-api-*.jar 2>/dev/null | head -1)
+    if [ -n "$API_JAR" ]; then
+        cp "$API_JAR" "$LIB/ferrofabric-api.jar"
+    fi
+fi
 echo "staged: $LIB and $MODS"
