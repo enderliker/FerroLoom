@@ -1,3 +1,4 @@
+pub mod libjvm;
 pub mod locate;
 pub mod release;
 

@@ -12,6 +12,8 @@ path = "src/lib.rs"
 # launcher builds against its own copy of the same build). Any other registry dependency must be
 # pinned with `horizon-launcher native-lock .` before building.
 horizon-mod-api = { path = ".horizon/sdk/api/crates/horizon-mod-api" }
+jni = { version = "0.21", features = ["invocation"] }
+libloading = "0.8"
 
 [dev-dependencies]
 tempfile = "3"
