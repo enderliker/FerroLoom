@@ -1,4 +1,4 @@
-use crate::bridge::upcall::{on_client_tick, TickHost};
+use crate::bridge::upcall::{TickHost, on_client_tick};
 use crate::bridge::window::EngineWindow;
 use crate::bridge::writes::WriteQueue;
 

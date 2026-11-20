@@ -7,11 +7,7 @@ impl WriteSink for Sink {
         match op {
             WriteOp::Log(text) | WriteOp::Chat(text) => {
                 self.0.push(text);
-                if self.1 {
-                    Err("nope".into())
-                } else {
-                    Ok(())
-                }
+                if self.1 { Err("nope".into()) } else { Ok(()) }
             }
         }
     }
@@ -62,6 +58,9 @@ fn a_foreign_thread_cannot_use_the_game_threads_queue() {
         .join()
         .unwrap()
     });
-    assert_eq!(outcome, Err(ferroloom::bridge::window::BridgeError::NotInCallback));
+    assert_eq!(
+        outcome,
+        Err(ferroloom::bridge::window::BridgeError::NotInCallback)
+    );
     assert_eq!(queue.len(), 0);
 }

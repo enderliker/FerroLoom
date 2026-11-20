@@ -26,7 +26,9 @@ pub type jdouble = f64;
 pub type jsize = jint;
 
 #[repr(C)]
-pub struct _jobject { _private: [u8; 0] }
+pub struct _jobject {
+    _private: [u8; 0],
+}
 pub type jobject = *mut _jobject;
 pub type jclass = jobject;
 pub type jthrowable = jobject;
@@ -66,15 +68,24 @@ impl Clone for jvalue {
 }
 
 #[repr(C)]
-pub struct _jfieldID { _private: [u8; 0] }
+pub struct _jfieldID {
+    _private: [u8; 0],
+}
 pub type jfieldID = *mut _jfieldID;
 #[repr(C)]
-pub struct _jmethodID { _private: [u8; 0] }
+pub struct _jmethodID {
+    _private: [u8; 0],
+}
 pub type jmethodID = *mut _jmethodID;
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub enum jobjectRefType { JNIInvalidRefType = 0, JNILocalRefType = 1, JNIGlobalRefType = 2, JNIWeakGlobalRefType = 3 }
+pub enum jobjectRefType {
+    JNIInvalidRefType = 0,
+    JNILocalRefType = 1,
+    JNIGlobalRefType = 2,
+    JNIWeakGlobalRefType = 3,
+}
 
 pub const JNI_FALSE: jboolean = 0;
 pub const JNI_TRUE: jboolean = 1;
@@ -101,7 +112,6 @@ pub const JNI_VERSION_19: jint = 0x00130000;
 pub const JNI_VERSION_20: jint = 0x00140000;
 pub const JNI_VERSION_21: jint = 0x00150000;
 pub const JNI_VERSION_24: jint = 0x00180000;
-
 
 pub type JNIEnv = *const JNINativeInterface_;
 pub type JavaVM = *const JNIInvokeInterface_;
@@ -1413,7 +1423,10 @@ impl Clone for JNIEnv_ {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct JavaVMOption { pub optionString: *mut c_char, pub extraInfo: *mut c_void }
+pub struct JavaVMOption {
+    pub optionString: *mut c_char,
+    pub extraInfo: *mut c_void,
+}
 
 // Note: we can't use the semver trick to re-export jni_sys_04::JavaVMInitArgs
 // because it contains a `jboolean` field which has changed from `u8` to `bool`
@@ -1435,7 +1448,11 @@ impl Clone for JavaVMInitArgs {
 
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct JavaVMAttachArgs { pub version: jint, pub name: *mut c_char, pub group: jobject }
+pub struct JavaVMAttachArgs {
+    pub version: jint,
+    pub name: *mut c_char,
+    pub group: jobject,
+}
 
 #[repr(C)]
 #[derive(Copy)]

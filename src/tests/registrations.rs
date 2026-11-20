@@ -1,4 +1,4 @@
-use ferroloom::bridge::registrations::{classpath, PendingRegistrations};
+use ferroloom::bridge::registrations::{PendingRegistrations, classpath};
 
 #[test]
 fn the_report_names_keys_commands_and_hud() {

@@ -1,4 +1,4 @@
-use ferroloom::jvm::locate::{locate, JvmLocateError, LocateSources};
+use ferroloom::jvm::locate::{JvmLocateError, LocateSources, locate};
 use std::fs;
 
 fn fake_jdk(dir: &std::path::Path, version: &str) {
@@ -64,7 +64,10 @@ fn nothing_found_names_every_path_tried() {
     {
         JvmLocateError::NotFound { tried } => {
             assert!(tried.iter().any(|p| p == &root), "missing root: {tried:?}");
-            assert!(tried.iter().any(|p| p == &jh), "missing java_home: {tried:?}");
+            assert!(
+                tried.iter().any(|p| p == &jh),
+                "missing java_home: {tried:?}"
+            );
         }
         e => panic!("{e:?}"),
     }

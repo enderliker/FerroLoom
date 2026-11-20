@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use crate::jvm::{locate_for_test, Jvm, JvmConfig};
+use crate::jvm::{Jvm, JvmConfig, locate_for_test};
 
 mod failures;
 mod handles;

@@ -1,4 +1,4 @@
-use ferroloom::jvm::libjvm::{find_libjvm, load, LibjvmError};
+use ferroloom::jvm::libjvm::{LibjvmError, find_libjvm, load};
 use std::fs;
 
 #[test]

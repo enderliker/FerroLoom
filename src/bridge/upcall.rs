@@ -1,5 +1,5 @@
 use super::window::EngineWindow;
-use super::writes::{with_queue, DrainReport, WriteOp, WriteQueue, WriteSink};
+use super::writes::{DrainReport, WriteOp, WriteQueue, WriteSink, with_queue};
 use crate::jvm::{Arg, Jvm, JvmError};
 
 pub struct TickHost<'a> {

@@ -1,15 +1,15 @@
 use std::io::Write;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-use mod_api::{ClientHost, KeyRegistration, RegistrationContext, Registrar};
+use mod_api::{ClientHost, KeyRegistration, Registrar, RegistrationContext};
 
 use crate::bridge::registrations::{self, PendingRegistrations};
-use crate::bridge::upcall::{on_client_tick, TickHost};
+use crate::bridge::upcall::{TickHost, on_client_tick};
 use crate::bridge::window::EngineWindow;
-use crate::bridge::writes::{with_queue, WriteOp, WriteQueue, WriteSink};
-use crate::jvm::{locate, Arg, Jvm, JvmConfig, LocateSources};
+use crate::bridge::writes::{WriteOp, WriteQueue, WriteSink, with_queue};
+use crate::jvm::{Arg, Jvm, JvmConfig, LocateSources, locate};
 use crate::settings::Settings;
 
 static JVM: OnceLock<Jvm> = OnceLock::new();
@@ -60,12 +60,15 @@ impl EngineWindow for ClientWindow<'_> {
 pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
     let settings = Settings::from_env();
     let Some(lib_dir) = settings.lib_dir.clone() else {
-        context.message(
-            "FerroLoom: set FERROLOOM_LIB_DIR to the folder with ferroloom-runtime.jar",
-        );
+        context
+            .message("FerroLoom: set FERROLOOM_LIB_DIR to the folder with ferroloom-runtime.jar");
         return;
     };
-    for required in ["ferroloom-runtime.jar", "ferroloom-loader.jar", "ferro-shim.jar"] {
+    for required in [
+        "ferroloom-runtime.jar",
+        "ferroloom-loader.jar",
+        "ferro-shim.jar",
+    ] {
         let jar = lib_dir.join(required);
         if !jar.is_file() {
             let message = format!(

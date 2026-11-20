@@ -79,8 +79,12 @@ impl Settings {
             lib_dir: lib_dir.map(PathBuf::from),
             minecraft_roots: Vec::new(),
             xmx_mib,
-            mods_dir: mods_dir.map(PathBuf::from).unwrap_or_else(|| base.join("ferroloom-mods")),
-            cache_dir: cache_dir.map(PathBuf::from).unwrap_or_else(|| base.join("ferroloom-cache")),
+            mods_dir: mods_dir
+                .map(PathBuf::from)
+                .unwrap_or_else(|| base.join("ferroloom-mods")),
+            cache_dir: cache_dir
+                .map(PathBuf::from)
+                .unwrap_or_else(|| base.join("ferroloom-cache")),
         }
     }
 }

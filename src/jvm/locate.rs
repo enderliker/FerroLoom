@@ -67,7 +67,7 @@ fn candidate(dir: &Path) -> Result<Option<JavaHome>, JvmLocateError> {
             return Err(JvmLocateError::Unreadable {
                 path: dir.to_path_buf(),
                 reason: error.to_string(),
-            })
+            });
         }
     };
     match parse_release(&release) {

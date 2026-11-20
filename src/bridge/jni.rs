@@ -1,10 +1,10 @@
 use std::any::Any;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use crate::jni_sys::*;
-use crate::jvm::{delete, java_string, JvmError};
+use crate::jvm::{JvmError, delete, java_string};
 
 use super::ops::Op;
 use super::writes::{self, WriteOp};

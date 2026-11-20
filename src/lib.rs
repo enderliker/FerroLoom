@@ -16,7 +16,7 @@ mod tests;
 use mod_api::runtime::Flow;
 use mod_api::{
     ClientHost, ClientSetupEvent, ClientTickPreEvent, CommandEvent, ComputeFovModifierEvent,
-    GuiLayerDrawEvent, Hooks, RegisterGuiLayersEvent, RegistrationContext, Registrar,
+    GuiLayerDrawEvent, Hooks, RegisterGuiLayersEvent, Registrar, RegistrationContext,
 };
 
 #[derive(Default)]
@@ -36,7 +36,11 @@ impl Hooks for Mod {
         horizon::client_setup(_host);
     }
 
-    fn compute_fov_modifier(&self, _host: &dyn ClientHost, event: &mut ComputeFovModifierEvent<'_>) {
+    fn compute_fov_modifier(
+        &self,
+        _host: &dyn ClientHost,
+        event: &mut ComputeFovModifierEvent<'_>,
+    ) {
         #[cfg(not(target_arch = "wasm32"))]
         horizon::compute_fov_modifier(event);
     }
@@ -51,7 +55,11 @@ impl Hooks for Mod {
         Flow::Continue
     }
 
-    fn register_gui_layers(&self, _context: &RegistrationContext, event: &mut RegisterGuiLayersEvent<'_>) {
+    fn register_gui_layers(
+        &self,
+        _context: &RegistrationContext,
+        event: &mut RegisterGuiLayersEvent<'_>,
+    ) {
         #[cfg(not(target_arch = "wasm32"))]
         horizon::register_gui_layers(event);
         #[cfg(target_arch = "wasm32")]

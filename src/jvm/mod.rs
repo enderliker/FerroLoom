@@ -5,13 +5,13 @@ pub mod release;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_void};
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::sync::Mutex;
 
 use crate::jni_sys::*;
 
-pub use locate::{locate, JavaHome, JavaVersion, JvmLocateError, LocateSources, MINIMUM_JAVA};
+pub use locate::{JavaHome, JavaVersion, JvmLocateError, LocateSources, MINIMUM_JAVA, locate};
 
 /// `JNI_CreateJavaVM` may run once per process.
 pub static CREATED: AtomicBool = AtomicBool::new(false);
@@ -37,11 +37,7 @@ impl JvmConfig {
             None => {
                 let jar = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                     .join("java/ferroloom-runtime/build/libs/ferroloom-runtime.jar");
-                if jar.exists() {
-                    vec![jar]
-                } else {
-                    vec![]
-                }
+                if jar.exists() { vec![jar] } else { vec![] }
             }
         };
         JvmConfig {
@@ -129,7 +125,9 @@ impl Arg {
                     reason: "NewStringUTF is missing".to_string(),
                 })?;
                 let string = unsafe { new_string(env, text.as_ptr()) };
-                jvalue { l: string as jobject }
+                jvalue {
+                    l: string as jobject,
+                }
             }
         })
     }
@@ -375,13 +373,11 @@ fn create_and_serve(
     Ok(())
 }
 
-fn create_vm(
-    config: &JvmConfig,
-) -> Result<(usize, *mut JNIEnv, libloading::Library), JvmError> {
+fn create_vm(config: &JvmConfig) -> Result<(usize, *mut JNIEnv, libloading::Library), JvmError> {
     let lib_path = libjvm::find_libjvm(&config.java_home).map_err(JvmError::Libjvm)?;
     let lib = unsafe { libjvm::load(&lib_path) }.map_err(JvmError::Libjvm)?;
-    let create: libloading::Symbol<'_, CreateJavaVm> =
-        unsafe { lib.get(b"JNI_CreateJavaVM\0") }.map_err(|error| {
+    let create: libloading::Symbol<'_, CreateJavaVm> = unsafe { lib.get(b"JNI_CreateJavaVM\0") }
+        .map_err(|error| {
             JvmError::Libjvm(libjvm::LibjvmError::LoadFailed {
                 path: lib_path.clone(),
                 reason: error.to_string(),
@@ -733,7 +729,10 @@ pub(crate) unsafe fn take_exception(env: *mut JNIEnv) -> Option<JvmError> {
         delete(env, throwable);
         delete(env, class as jobject);
     }
-    Some(JvmError::JavaException { class: name, message })
+    Some(JvmError::JavaException {
+        class: name,
+        message,
+    })
 }
 
 unsafe fn object_string(
