@@ -33,7 +33,7 @@ tasks.jar {
 dependencies {
     implementation(project(":ferroloom-runtime"))
     compileOnly(files(rootProject.file(".runtime/fabric/fabric-loader-0.20.1.jar")))
-    testImplementation(platform("org.junit:junit-bom:5.11.4"))
+    testImplementation(platform("org.junit:junit-bom:6.1.3"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation(files(generatedJar))
