@@ -1,0 +1,5 @@
+/target
+/.horizon
+java/.gradle/
+java/**/build/
+*.log
