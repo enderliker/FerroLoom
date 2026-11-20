@@ -1,7 +1,20 @@
 package dev.ferroloom.shimgen;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarOutputStream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
@@ -17,7 +30,64 @@ import org.objectweb.asm.tree.MethodNode;
 public final class ShimGenerator {
     public static final String EXCEPTION = "dev/ferroloom/shim/FerroUnimplementedException";
 
+    public record Summary(int classes, int methods, int skipped) {}
+
     private ShimGenerator() {}
+
+    /** Generates every game class in {@code clientJar} into {@code outJar}. */
+    public static Summary generate(Path clientJar, Path impls, Path outJar) throws IOException {
+        Map<String, byte[]> classes = new java.util.LinkedHashMap<>();
+        try (ZipFile zip = new ZipFile(clientJar.toFile())) {
+            var entries = zip.entries();
+            while (entries.hasMoreElements()) {
+                ZipEntry entry = entries.nextElement();
+                if (!entry.getName().endsWith(".class")) continue;
+                try (InputStream in = zip.getInputStream(entry)) {
+                    classes.put(entry.getName().substring(0, entry.getName().length() - 6), in.readAllBytes());
+                }
+            }
+        }
+
+        Map<String, String> supers = new HashMap<>();
+        for (var e : classes.entrySet()) supers.put(e.getKey(), new ClassReader(e.getValue()).getSuperName());
+
+        ImplTables base = ImplTables.load(impls);
+        Set<String> constructible = new HashSet<>();
+        for (String name : classes.keySet()) {
+            if (!base.isConstructible(name)) continue;
+            String cursor = name;
+            while (cursor != null && classes.containsKey(cursor) && constructible.add(cursor)) {
+                cursor = supers.get(cursor);
+            }
+        }
+        ImplTables tables = base.withConstructible(constructible);
+
+        int methods = 0;
+        int skipped = 0;
+        try (OutputStream out = Files.newOutputStream(outJar); JarOutputStream jar = new JarOutputStream(out)) {
+            for (var e : classes.entrySet()) {
+                byte[] generated = generateClass(e.getValue(), tables);
+                ClassNode node = new ClassNode();
+                new ClassReader(generated).accept(node, ClassReader.SKIP_CODE);
+                methods += node.methods.size();
+                skipped += skippedIn(e.getValue());
+                jar.putNextEntry(new JarEntry(e.getKey() + ".class"));
+                jar.write(generated);
+                jar.closeEntry();
+            }
+        }
+        return new Summary(classes.size(), methods, skipped);
+    }
+
+    private static int skippedIn(byte[] input) {
+        ClassNode node = new ClassNode();
+        new ClassReader(input).accept(node, ClassReader.SKIP_CODE);
+        int n = 0;
+        for (MethodNode m : node.methods) {
+            if ((m.access & (Opcodes.ACC_SYNTHETIC | Opcodes.ACC_BRIDGE)) != 0) n++;
+        }
+        return n;
+    }
 
     public static byte[] generateClass(byte[] input, ImplTables tables) {
         ClassNode in = new ClassNode();
@@ -66,7 +136,7 @@ public final class ShimGenerator {
         boolean isAbstract = (m.access & Opcodes.ACC_ABSTRACT) != 0;
         int access = Opcodes.ACC_PUBLIC | (isStatic ? Opcodes.ACC_STATIC : 0) | (isAbstract ? Opcodes.ACC_ABSTRACT : 0);
         MethodNode out = new MethodNode(access, m.name, m.desc, null, null);
-        if (isAbstract && isInterface) return out;
+        if (isAbstract) return out;
 
         ImplTables.Impl impl = tables.get(owner.name + "#" + m.name + m.desc);
         if (impl == null) {

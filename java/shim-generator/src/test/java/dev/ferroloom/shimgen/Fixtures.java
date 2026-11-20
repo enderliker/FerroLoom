@@ -125,6 +125,10 @@ final class Fixtures {
         return cw.toByteArray();
     }
 
+    static ClassLoader jarLoader(java.nio.file.Path jar) throws java.io.IOException {
+        return new java.net.URLClassLoader(new java.net.URL[] {jar.toUri().toURL()}, Fixtures.class.getClassLoader());
+    }
+
     static ClassLoader loader(byte[]... classes) {
         return new ClassLoader(Fixtures.class.getClassLoader()) {
             @Override

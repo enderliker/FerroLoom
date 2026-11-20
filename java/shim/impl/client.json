@@ -1,0 +1,17 @@
+{
+  "constructible": [
+    "net/minecraft/client/Minecraft",
+    "net/minecraft/client/renderer/GameRenderer",
+    "net/minecraft/client/Camera",
+    "net/minecraft/client/player/LocalPlayer"
+  ],
+  "methods": {
+    "net/minecraft/client/Minecraft#getInstance()Lnet/minecraft/client/Minecraft;": {"impl": "dev/ferroloom/shim/ShimImpl.getInstance"},
+    "net/minecraft/client/Camera#tickFov()V": {"impl": "dev/ferroloom/shim/ShimImpl.tickFov"},
+    "net/minecraft/client/Camera#calculateFov(F)F": {"impl": "dev/ferroloom/shim/ShimImpl.calculateFov"},
+    "net/minecraft/client/Camera#getFov()F": {"impl": "dev/ferroloom/shim/ShimImpl.fov"},
+    "net/minecraft/world/entity/Entity#getX()D": {"impl": "dev/ferroloom/shim/ShimImpl.posX"},
+    "net/minecraft/world/entity/Entity#getY()D": {"impl": "dev/ferroloom/shim/ShimImpl.posY"},
+    "net/minecraft/world/entity/Entity#getZ()D": {"impl": "dev/ferroloom/shim/ShimImpl.posZ"}
+  }
+}

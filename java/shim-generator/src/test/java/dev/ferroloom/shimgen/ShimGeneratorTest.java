@@ -75,6 +75,50 @@ class ShimGeneratorTest {
     }
 
     @Test
+    void impl_tables_are_read_from_json() throws Exception {
+        java.nio.file.Path impls = java.nio.file.Files.createTempDirectory("fl-impl");
+        java.nio.file.Files.writeString(impls.resolve("client.json"), """
+                { "constructible": ["example/A"],
+                  "methods": {
+                    "example/A#run()V": {"impl": "example/Calls.run"},
+                    "example/A#fov(F)F": {"impl": "example/Calls.fov"}
+                  } }
+                """);
+        ImplTables tables = ImplTables.load(impls);
+        assertTrue(tables.isConstructible("example/A"));
+        assertEquals("example/Calls", tables.get("example/A#run()V").owner());
+        assertEquals("fov", tables.get("example/A#fov(F)F").method());
+    }
+
+    @Test
+    void generate_writes_a_jar_and_follows_the_superclass_chain_for_constructibility() throws Exception {
+        java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("fl-gen");
+        java.nio.file.Path jar = dir.resolve("in.jar");
+        try (var out = java.nio.file.Files.newOutputStream(jar); var zip = new java.util.jar.JarOutputStream(out)) {
+            java.util.Map<String, byte[]> classes = java.util.Map.of(
+                    "example/A", Fixtures.clazz("example/A", "example/B", null, List.of()),
+                    "example/B", Fixtures.clazz("example/B", "java/lang/Object", null, List.of()));
+            for (var e : classes.entrySet()) {
+                zip.putNextEntry(new java.util.jar.JarEntry(e.getKey() + ".class"));
+                zip.write(e.getValue());
+                zip.closeEntry();
+            }
+        }
+        java.nio.file.Path impls = java.nio.file.Files.createDirectories(dir.resolve("impl"));
+        java.nio.file.Files.writeString(impls.resolve("t.json"),
+                "{\"constructible\":[\"example/A\"],\"methods\":{}}");
+
+        ShimGenerator.Summary summary = ShimGenerator.generate(jar, impls, dir.resolve("out.jar"));
+
+        assertEquals(2, summary.classes());
+        ClassLoader loader = Fixtures.jarLoader(dir.resolve("out.jar"));
+        Object a = loader.loadClass("example.A").getDeclaredConstructor().newInstance();
+        Object b = loader.loadClass("example.B").getDeclaredConstructor().newInstance();
+        assertNotNull(a);
+        assertNotNull(b);
+    }
+
+    @Test
     void an_interface_gets_default_bodies_that_throw() throws Exception {
         byte[] in = Fixtures.interfaceClazz("example/I",
                 Fixtures.methods(new Fixtures.Method("run", "()V")));
