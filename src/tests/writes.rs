@@ -5,7 +5,7 @@ struct Sink(Vec<String>, bool);
 impl WriteSink for Sink {
     fn apply(&mut self, op: WriteOp) -> Result<(), String> {
         match op {
-            WriteOp::Log(text) => {
+            WriteOp::Log(text) | WriteOp::Chat(text) => {
                 self.0.push(text);
                 if self.1 {
                     Err("nope".into())
@@ -39,4 +39,15 @@ fn one_failure_does_not_stop_the_rest() {
     assert_eq!(report.failed.len(), 2);
     assert_eq!(sink.0.len(), 2);
     assert_eq!(queue.len(), 0);
+}
+
+#[test]
+fn chat_and_log_keep_their_order() {
+    let mut queue = WriteQueue::new();
+    queue.enqueue(WriteOp::Chat("hola".into()));
+    queue.enqueue(WriteOp::Log("pos=1".into()));
+    let mut sink = Sink(vec![], false);
+    let report = queue.drain(&mut sink);
+    assert_eq!(report.applied, 2);
+    assert_eq!(sink.0, vec!["hola", "pos=1"]);
 }

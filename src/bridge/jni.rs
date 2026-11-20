@@ -111,8 +111,14 @@ unsafe extern "system" fn ferroloom_call_string(
 ) -> jstring {
     let outcome = catch_unwind(AssertUnwindSafe(|| {
         let input = unsafe { java_string(env, text) }.unwrap_or_default();
-        if matches!(Op::from_i32(op), Some(Op::Log)) {
-            let _ = writes::enqueue_current(WriteOp::Log(input.clone()));
+        match Op::from_i32(op) {
+            Some(Op::Log) => {
+                let _ = writes::enqueue_current(WriteOp::Log(input.clone()));
+            }
+            Some(Op::Chat) => {
+                let _ = writes::enqueue_current(WriteOp::Chat(input.clone()));
+            }
+            _ => {}
         }
         let out = CString::new(input).ok()?;
         let new_string = unsafe { (**env).NewStringUTF }?;

@@ -1,20 +1,56 @@
 package dev.ferroloom.loader;
 
+import dev.ferroloom.api.FerroEvents;
 import dev.ferroloom.loader.remap.RemapCache;
 import dev.ferroloom.loader.remap.RemapError;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.fabricmc.loader.impl.launch.knot.Knot;
+import dev.ferroloom.shim.ShimRuntime;
 import net.fabricmc.api.EnvType;
+import net.fabricmc.api.ClientModInitializer;
 
 /** Starts Fabric Loader inside the JVM FerroLoom owns. Called once, from the mod's registration. */
 public final class FerroBootstrap {
+    private static final List<String> FAILED = new ArrayList<>();
+
     private FerroBootstrap() {}
+
+    /** One client tick: push the position the game thread read, then dispatch to the mods. */
+    public static void onTick(long tick, double x, double y, double z) {
+        ShimRuntime.updatePlayer(x, y, z);
+        for (FerroEvents.TickListener listener : List.copyOf(FerroEvents.TICKS)) {
+            try {
+                listener.onTick(tick, x, y, z);
+            } catch (Throwable failure) {
+                failed("tick", failure);
+                FerroEvents.TICKS.remove(listener);
+            }
+        }
+    }
+
+    /** Runs the mods' client entrypoints once, on the engine's client_setup. */
+    public static void onClientSetup() {
+        FabricLoaderImpl.INSTANCE.invokeEntrypoints("client", ClientModInitializer.class,
+                ClientModInitializer::onInitializeClient);
+    }
+
+    static void failed(String where, Throwable failure) {
+        String text = where + ": " + failure;
+        FAILED.add(text);
+        dev.ferroloom.api.FerroApi.log("listener failed " + text);
+    }
+
+    /** Test hook: listener failures seen so far. */
+    public static List<String> failedListeners() {
+        return FAILED;
+    }
 
     public static Path gameDir() {
         return Path.of(property("ferro.gameDir", "."));

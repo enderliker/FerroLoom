@@ -6,6 +6,10 @@ pub trait EngineWindow {
     #[allow(dead_code)]
     fn read_player_pos(&self) -> Option<[f64; 3]>;
     fn log(&mut self, message: &str);
+    /// Sends a chat line; windows that cannot may fall back to the log.
+    fn send_chat(&mut self, message: &str) {
+        self.log(&format!("chat: {message}"));
+    }
 }
 
 #[allow(dead_code)]

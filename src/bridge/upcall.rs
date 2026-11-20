@@ -48,6 +48,10 @@ impl WriteSink for WindowSink<'_> {
                 self.window.log(&text);
                 Ok(())
             }
+            WriteOp::Chat(text) => {
+                self.window.send_chat(&text);
+                Ok(())
+            }
         }
     }
 }

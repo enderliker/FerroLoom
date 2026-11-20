@@ -7,6 +7,7 @@ use super::window::BridgeError;
 /// An effect Java asked for, applied at the end of the engine callback that asked for it.
 pub enum WriteOp {
     Log(String),
+    Chat(String),
 }
 
 pub trait WriteSink {

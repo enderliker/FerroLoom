@@ -13,7 +13,7 @@ pub mod settings;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;
 
-use mod_api::{ClientHost, ClientTickPreEvent, Hooks, RegistrationContext, Registrar};
+use mod_api::{ClientHost, ClientSetupEvent, ClientTickPreEvent, Hooks, RegistrationContext, Registrar};
 
 #[derive(Default)]
 struct Mod;
@@ -25,6 +25,11 @@ impl Hooks for Mod {
         horizon::register(context, registrar);
         #[cfg(target_arch = "wasm32")]
         let _ = (context, registrar);
+    }
+
+    fn client_setup(&self, _host: &mut dyn ClientHost, _event: &mut ClientSetupEvent) {
+        #[cfg(not(target_arch = "wasm32"))]
+        horizon::client_setup();
     }
 
     fn client_tick_pre(&self, host: &mut dyn ClientHost, _event: &mut ClientTickPreEvent) {

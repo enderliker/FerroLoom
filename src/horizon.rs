@@ -46,6 +46,13 @@ impl EngineWindow for ClientWindow<'_> {
     fn log(&mut self, message: &str) {
         log_line(message);
     }
+
+    fn send_chat(&mut self, message: &str) {
+        match self.host.send_chat(message) {
+            Ok(()) => log_line(&format!("chat: {message}")),
+            Err(reason) => log_line(&format!("chat failed: {reason}")),
+        }
+    }
 }
 
 pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
@@ -159,6 +166,21 @@ pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
             log_line(&format!("register failed: {error}"));
             context.message(&format!("FerroLoom: {error}"));
         }
+    }
+}
+
+pub fn client_setup() {
+    let Some(jvm) = JVM.get() else {
+        return;
+    };
+    match jvm.call_static_void(
+        "dev/ferroloom/loader/FerroBootstrap",
+        "onClientSetup",
+        "()V",
+        &[],
+    ) {
+        Ok(()) => log_line("client setup: client entrypoints ran"),
+        Err(error) => log_line(&format!("client setup failed: {error}")),
     }
 }
 
