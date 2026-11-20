@@ -38,6 +38,14 @@ public final class FerroRegistrations {
         return hudLine;
     }
 
+    /** The mod that registered command {@code name}, or "" when none did. */
+    public static synchronized String commandOwner(String name) {
+        for (Command command : COMMANDS) {
+            if (command.name().equals(name)) return command.modId();
+        }
+        return "";
+    }
+
     public static synchronized String report() {
         StringBuilder out = new StringBuilder();
         for (Key key : KEYS) {

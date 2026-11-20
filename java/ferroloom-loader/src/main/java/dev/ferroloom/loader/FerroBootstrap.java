@@ -20,9 +20,6 @@ import net.fabricmc.loader.impl.launch.knot.Knot;
  */
 public final class FerroBootstrap {
     private static volatile ClassLoader gameLoader;
-    private static volatile Method tick;
-    private static volatile Method fov;
-    private static volatile Method setup;
 
     private FerroBootstrap() {}
 
@@ -74,9 +71,10 @@ public final class FerroBootstrap {
         if (!shims.isEmpty()) System.setProperty("fabric.gameJarPath.client", shims.get(0).toString());
 
         try {
-            RemapCache.ensureNamed(modsDir(), cacheDir());
-        } catch (RemapError e) {
-            throw new IllegalStateException("FerroLoom: " + e.getMessage(), e);
+            RemapCache.CacheResult result = RemapCache.ensureNamed(modsDir(), cacheDir());
+            for (RemapError refusal : result.refused()) {
+                dev.ferroloom.api.FerroApi.log("mods: skipping " + refusal.jar() + ": " + refusal.reason());
+            }
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
@@ -87,10 +85,15 @@ public final class FerroBootstrap {
         gameLoader = loader;
         try {
             FabricLoaderImpl.INSTANCE.invokeEntrypoints("main", ModInitializer.class, ModInitializer::onInitialize);
+            return dev.ferroloom.api.FerroRegistrations.report();
         } catch (Throwable failure) {
-            throw new IllegalStateException(dev.ferroloom.api.Errors.describe(failure), failure);
+            // Fabric runs every entrypoint and then throws the aggregate: the other mods'
+            // registrations are still in the report, and the failing mod is named in the message.
+            String description = dev.ferroloom.api.Errors.describe(failure).lines()
+                    .findFirst().orElse("entrypoint failure").replace('\t', ' ');
+            dev.ferroloom.api.FerroApi.log("entrypoint failed: " + description);
+            return dev.ferroloom.api.FerroRegistrations.report() + "FAILED\t" + description + "\n";
         }
-        return dev.ferroloom.api.FerroRegistrations.report();
     }
 
     public static void onTick(long tickNumber, double x, double y, double z) {

@@ -1,0 +1,8 @@
+{
+  "compute_fov_modifier": {
+    "java": "dev.ferroloom.loader.FerroBootstrap.computeFovModifier",
+    "calls": "Minecraft.getInstance().gameRenderer exists; Camera.tickFov() then Camera.getFov()",
+    "why": "26.3 has no GameRenderer.getFov; zoom mods mix into net.minecraft.client.Camera",
+    "result": "the returned value becomes ComputeFovModifierEvent.modifier"
+  }
+}

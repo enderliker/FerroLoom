@@ -37,8 +37,14 @@ class RegistrationsTest {
 
     @Test
     void a_registered_command_is_handled_and_an_unknown_one_is_not() {
-        FerroEvents.onCommand((mod, name, args) -> name.equals("ferro-hola"));
+        FerroApi.registerCommand("example", "ferro-hola");
+        String[] owner = new String[1];
+        FerroEvents.onCommand((mod, name, args) -> {
+            owner[0] = mod;
+            return name.equals("ferro-hola");
+        });
         assertTrue(FerroBootstrap.onCommand("ferro-hola"));
+        assertEquals("example", owner[0]);
         assertFalse(FerroBootstrap.onCommand("otra-cosa"));
     }
 

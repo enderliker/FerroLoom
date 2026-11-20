@@ -62,7 +62,17 @@ unsafe fn find_class(env: *mut JNIEnv, name: &str) -> Result<jclass, JvmError> {
 }
 
 unsafe fn throw(env: *mut JNIEnv, message: &str) {
-    let text = match CString::new(format!("ferroloom: internal error: {message}")) {
+    unsafe {
+        throw_class(
+            env,
+            c"java/lang/RuntimeException",
+            &format!("ferroloom: internal error: {message}"),
+        )
+    };
+}
+
+unsafe fn throw_class(env: *mut JNIEnv, class_name: &std::ffi::CStr, message: &str) {
+    let text = match CString::new(message) {
         Ok(text) => text,
         Err(_) => return,
     };
@@ -70,7 +80,7 @@ unsafe fn throw(env: *mut JNIEnv, message: &str) {
         Some(find) => find,
         None => return,
     };
-    let class = unsafe { find(env, c"java/lang/RuntimeException".as_ptr()) };
+    let class = unsafe { find(env, class_name.as_ptr()) };
     if class.is_null() {
         return;
     }
@@ -111,14 +121,22 @@ unsafe extern "system" fn ferroloom_call_string(
 ) -> jstring {
     let outcome = catch_unwind(AssertUnwindSafe(|| {
         let input = unsafe { java_string(env, text) }.unwrap_or_default();
-        match Op::from_i32(op) {
-            Some(Op::Log) => {
-                let _ = writes::enqueue_current(WriteOp::Log(input.clone()));
+        let write = match Op::from_i32(op) {
+            Some(Op::Log) => Some(WriteOp::Log(input.clone())),
+            Some(Op::Chat) => Some(WriteOp::Chat(input.clone())),
+            _ => None,
+        };
+        if let Some(write) = write {
+            if let Err(error) = writes::enqueue_current(write) {
+                unsafe {
+                    throw_class(
+                        env,
+                        c"dev/ferroloom/runtime/FerroNotInCallbackException",
+                        &format!("FerroLoom: write outside a callback ({error:?})"),
+                    )
+                };
+                return None;
             }
-            Some(Op::Chat) => {
-                let _ = writes::enqueue_current(WriteOp::Chat(input.clone()));
-            }
-            _ => {}
         }
         let out = CString::new(input).ok()?;
         let new_string = unsafe { (**env).NewStringUTF }?;

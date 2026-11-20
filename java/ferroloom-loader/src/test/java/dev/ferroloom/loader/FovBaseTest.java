@@ -16,6 +16,10 @@ class FovBaseTest {
         System.setProperty("ferro.gameDir", tmp.toString());
         FerroBootstrap.start();
 
+        FerroBootstrap.onClientSetup();
+        Class<?> runtime = Class.forName("dev.ferroloom.shim.ShimRuntime", true,
+                Thread.currentThread().getContextClassLoader());
+        assertNotNull(runtime.getMethod("client").invoke(null));
         assertEquals(1.25f, FerroBootstrap.computeFovModifier(1.25f, 0.0f, false), 0.0001f);
     }
 }

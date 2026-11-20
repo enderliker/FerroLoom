@@ -24,7 +24,7 @@ public final class HorizonGameProvider implements GameProvider {
     @Override public String getGameName() { return "Horizon"; }
     @Override public String getRawGameVersion() { return "26.3"; }
     @Override public String getNormalizedGameVersion() { return "26.3"; }
-    @Override public String getEntrypoint() { return "dev.ferroloom.loader.FerroGameMain"; }
+    @Override public String getEntrypoint() { return "dev.ferroloom.shim.GameBridge"; }
     @Override public Path getLaunchDirectory() { return FerroBootstrap.gameDir(); }
     @Override public boolean requiresUrlClassLoader() { return false; }
     @Override public boolean isEnabled() { return true; }

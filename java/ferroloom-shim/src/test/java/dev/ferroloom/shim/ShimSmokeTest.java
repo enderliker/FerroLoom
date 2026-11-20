@@ -20,12 +20,29 @@ class ShimSmokeTest {
     }
 
     @Test
-    void position_reads_come_from_the_pushed_values() {
-        ShimRuntime.updatePlayer(1.5, 64.0, -2.5);
+    void position_reads_come_from_the_pushed_values_inside_a_tick() {
+        double[] read = new double[3];
+        dev.ferroloom.api.FerroEvents.onClientTick((tick, x, y, z) -> {
+            LocalPlayer p = new LocalPlayer();
+            read[0] = p.getX();
+            read[1] = p.getY();
+            read[2] = p.getZ();
+        });
+        try {
+            GameBridge.onTick(1, 1.5, 64.0, -2.5);
+        } finally {
+            dev.ferroloom.api.FerroEvents.clear();
+        }
+        assertEquals(1.5, read[0]);
+        assertEquals(64.0, read[1]);
+        assertEquals(-2.5, read[2]);
+    }
+
+    @Test
+    void a_read_outside_a_callback_is_refused() {
+        ShimRuntime.updatePlayer(1.0, 2.0, 3.0);
         LocalPlayer p = new LocalPlayer();
-        assertEquals(1.5, p.getX());
-        assertEquals(64.0, p.getY());
-        assertEquals(-2.5, p.getZ());
+        assertThrows(dev.ferroloom.runtime.FerroNotInCallbackException.class, p::getX);
     }
 
     @Test

@@ -117,6 +117,52 @@ public final class TestMods {
         return jar;
     }
 
+    /** A client-only mod whose mixin injects into a method that does not exist. */
+    public static Path brokenMixinJar(Path modsDir) throws IOException {
+        String source = """
+                package badmixin;
+                @org.spongepowered.asm.mixin.Mixin(net.minecraft.client.Camera.class)
+                public class BadMixin {
+                    @org.spongepowered.asm.mixin.injection.Inject(
+                            method = "noSuchCameraMethod",
+                            at = @org.spongepowered.asm.mixin.injection.At("HEAD"))
+                    private void missing(org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+                    }
+                }
+                """;
+        Path work = Files.createTempDirectory("fl-badmixin");
+        Path classes = Files.createDirectories(work.resolve("classes"));
+        Path src = work.resolve("src/badmixin/BadMixin.java");
+        Files.createDirectories(src.getParent());
+        Files.writeString(src, source);
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        int rc = compiler.run(null, null, null, "--release", "21", "-classpath",
+                System.getProperty("java.class.path"), "-d", classes.toString(), src.toString());
+        if (rc != 0) throw new IllegalStateException("bad mixin failed to compile");
+
+        Path jar = Files.createDirectories(modsDir).resolve("badmixin.jar");
+        try (OutputStream out = Files.newOutputStream(jar); JarOutputStream zout = new JarOutputStream(out)) {
+            zout.putNextEntry(new JarEntry("fabric.mod.json"));
+            zout.write(("{\"schemaVersion\":1,\"id\":\"badmixin\",\"version\":\"1.0.0\","
+                    + "\"environment\":\"client\",\"mixins\":[\"bad.mixins.json\"],"
+                    + "\"depends\":{\"minecraft\":\">=26.3\"}}").getBytes(StandardCharsets.UTF_8));
+            zout.closeEntry();
+            zout.putNextEntry(new JarEntry("bad.mixins.json"));
+            zout.write(("{\"required\":true,\"package\":\"badmixin\",\"client\":[\"BadMixin\"],"
+                    + "\"compatibilityLevel\":\"JAVA_21\",\"injectors\":{\"defaultRequire\":1}}")
+                    .getBytes(StandardCharsets.UTF_8));
+            zout.closeEntry();
+            try (var files = Files.walk(classes)) {
+                for (Path file : files.filter(Files::isRegularFile).toList()) {
+                    zout.putNextEntry(new JarEntry(classes.relativize(file).toString().replace('\\', '/')));
+                    zout.write(Files.readAllBytes(file));
+                    zout.closeEntry();
+                }
+            }
+        }
+        return jar;
+    }
+
     public static Path jar(Path modsDir, String id, String source) throws IOException {
         return jar(modsDir, id, id + ".Entry", source, Map.of("main", id + ".Entry"), null);
     }

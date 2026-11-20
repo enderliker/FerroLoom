@@ -20,7 +20,7 @@ launches a game, and dispatches the engine's hooks to Fabric mods loaded from it
   site.
 - Ticks, keys, client commands and a HUD layer reach a Fabric mod; the chat and log writes it
   makes are applied at the end of the hook.
-- 26 Rust tests and 14 Java tests (runtime, loader, generator and shim).
+- 26 Rust tests and 35 Java tests (runtime, loader, generator and shim).
 
 ## What it does not do yet
 

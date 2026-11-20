@@ -5,6 +5,8 @@ import net.minecraft.client.Camera;
 /** The state the engine pushes into the shim before each hook call. */
 public final class ShimRuntime {
     private static Object client;
+    private static volatile Thread callbackThread;
+    private static volatile int callbacks;
     private static Camera camera;
     private static double playerX;
     private static double playerY;
@@ -25,6 +27,23 @@ public final class ShimRuntime {
         playerX = x;
         playerY = y;
         playerZ = z;
+        callbackThread = Thread.currentThread();
+    }
+
+    public static void enterCallback() {
+        callbacks++;
+    }
+
+    public static void exitCallback() {
+        callbacks--;
+    }
+
+    /** Engine reads are only valid inside a callback, on the thread that owns the bridge. */
+    public static void requireCallback() {
+        if (callbacks <= 0 || Thread.currentThread() != callbackThread) {
+            throw new dev.ferroloom.runtime.FerroNotInCallbackException(
+                    "FerroLoom: engine read outside a callback");
+        }
     }
 
     public static double playerX() { return playerX; }

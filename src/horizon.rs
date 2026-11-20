@@ -148,6 +148,9 @@ pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
                     for message in &pending.logs {
                         log_line(message);
                     }
+                    for failure in &pending.failed {
+                        log_line(&format!("mod failed: {failure}"));
+                    }
                     log_line(&format!(
                         "JVM ready; loader started; {} key(s), {} command(s), hud={}",
                         pending.keys.len(),
@@ -209,7 +212,7 @@ pub fn client_setup(host: &mut dyn ClientHost) {
         )
     });
     let mut sink = HostSink { host };
-    let _ = writes.drain(&mut sink);
+    log_drain(writes.drain(&mut sink));
     match outcome {
         Ok(()) => log_line("client setup: client entrypoints ran"),
         Err(error) => log_line(&format!("client setup failed: {error}")),
@@ -245,13 +248,19 @@ pub fn command(host: &mut dyn ClientHost, command: &str) -> bool {
         )
     });
     let mut sink = HostSink { host };
-    let _ = writes.drain(&mut sink);
+    log_drain(writes.drain(&mut sink));
     match handled {
         Ok(handled) => handled,
         Err(error) => {
             log_line(&format!("command dispatch failed: {error}"));
             false
         }
+    }
+}
+
+fn log_drain(report: crate::bridge::writes::DrainReport) {
+    for (index, reason) in report.failed {
+        log_line(&format!("write {index} failed: {reason}"));
     }
 }
 

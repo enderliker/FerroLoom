@@ -94,6 +94,26 @@ pub enum Arg {
     Text(String),
 }
 
+/// Converts call arguments, returning the local string refs so they can be released after the call.
+fn jvalues(env: *mut JNIEnv, args: &[Arg]) -> Result<(Vec<jvalue>, Vec<jobject>), JvmError> {
+    let mut values = Vec::with_capacity(args.len());
+    let mut strings = Vec::new();
+    for arg in args {
+        let value = arg.as_jvalue(env)?;
+        if matches!(arg, Arg::Text(_)) {
+            strings.push(unsafe { value.l });
+        }
+        values.push(value);
+    }
+    Ok((values, strings))
+}
+
+fn free_jstrings(env: *mut JNIEnv, strings: Vec<jobject>) {
+    for string in strings {
+        unsafe { delete(env, string) };
+    }
+}
+
 impl Arg {
     fn as_jvalue(&self, env: *mut JNIEnv) -> Result<jvalue, JvmError> {
         Ok(match self {
@@ -188,6 +208,7 @@ impl Jvm {
             .name("ferroloom-jvm".to_string())
             .stack_size(16 * 1024 * 1024)
             .spawn(move || {
+                crate::bridge::writes::mark_bridge_thread();
                 if let Err(error) = create_and_serve(&config, ready_sender) {
                     eprintln!("[ferroloom] JVM thread ended: {error}");
                 }
@@ -482,15 +503,13 @@ unsafe fn call_long_env(
 ) -> Result<i64, JvmError> {
     let class = unsafe { find_class(env, class)? };
     let method = unsafe { static_method(env, class, method, signature)? };
-    let args: Vec<jvalue> = args
-        .iter()
-        .map(|arg| arg.as_jvalue(env))
-        .collect::<Result<_, _>>()?;
+    let (args, strings) = jvalues(env, args)?;
     let call = unsafe { (**env).CallStaticLongMethodA }.ok_or_else(|| JvmError::Jni {
         reason: "CallStaticLongMethodA is missing".to_string(),
     })?;
     let value = unsafe { call(env, class, method, args.as_ptr()) };
     let exception = unsafe { take_exception(env) };
+    free_jstrings(env, strings);
     unsafe { delete(env, class as jobject) };
     match exception {
         Some(error) => Err(error),
@@ -507,15 +526,13 @@ unsafe fn call_void_env(
 ) -> Result<(), JvmError> {
     let class = unsafe { find_class(env, class)? };
     let method = unsafe { static_method(env, class, method, signature)? };
-    let args: Vec<jvalue> = args
-        .iter()
-        .map(|arg| arg.as_jvalue(env))
-        .collect::<Result<_, _>>()?;
+    let (args, strings) = jvalues(env, args)?;
     let call = unsafe { (**env).CallStaticVoidMethodA }.ok_or_else(|| JvmError::Jni {
         reason: "CallStaticVoidMethodA is missing".to_string(),
     })?;
     unsafe { call(env, class, method, args.as_ptr()) };
     let exception = unsafe { take_exception(env) };
+    free_jstrings(env, strings);
     unsafe { delete(env, class as jobject) };
     match exception {
         Some(error) => Err(error),
@@ -532,15 +549,13 @@ unsafe fn call_bool_env(
 ) -> Result<bool, JvmError> {
     let class = unsafe { find_class(env, class)? };
     let method = unsafe { static_method(env, class, method, signature)? };
-    let args: Vec<jvalue> = args
-        .iter()
-        .map(|arg| arg.as_jvalue(env))
-        .collect::<Result<_, _>>()?;
+    let (args, strings) = jvalues(env, args)?;
     let call = unsafe { (**env).CallStaticBooleanMethodA }.ok_or_else(|| JvmError::Jni {
         reason: "CallStaticBooleanMethodA is missing".to_string(),
     })?;
     let value = unsafe { call(env, class, method, args.as_ptr()) };
     let exception = unsafe { take_exception(env) };
+    free_jstrings(env, strings);
     unsafe { delete(env, class as jobject) };
     match exception {
         Some(error) => Err(error),
@@ -557,15 +572,13 @@ unsafe fn call_float_env(
 ) -> Result<f32, JvmError> {
     let class = unsafe { find_class(env, class)? };
     let method = unsafe { static_method(env, class, method, signature)? };
-    let args: Vec<jvalue> = args
-        .iter()
-        .map(|arg| arg.as_jvalue(env))
-        .collect::<Result<_, _>>()?;
+    let (args, strings) = jvalues(env, args)?;
     let call = unsafe { (**env).CallStaticFloatMethodA }.ok_or_else(|| JvmError::Jni {
         reason: "CallStaticFloatMethodA is missing".to_string(),
     })?;
     let value = unsafe { call(env, class, method, args.as_ptr()) };
     let exception = unsafe { take_exception(env) };
+    free_jstrings(env, strings);
     unsafe { delete(env, class as jobject) };
     match exception {
         Some(error) => Err(error),
@@ -582,15 +595,13 @@ unsafe fn call_string_env(
 ) -> Result<String, JvmError> {
     let class = unsafe { find_class(env, class)? };
     let method = unsafe { static_method(env, class, method, signature)? };
-    let args: Vec<jvalue> = args
-        .iter()
-        .map(|arg| arg.as_jvalue(env))
-        .collect::<Result<_, _>>()?;
+    let (args, strings) = jvalues(env, args)?;
     let call = unsafe { (**env).CallStaticObjectMethodA }.ok_or_else(|| JvmError::Jni {
         reason: "CallStaticObjectMethodA is missing".to_string(),
     })?;
     let object = unsafe { call(env, class, method, args.as_ptr()) };
     let exception = unsafe { take_exception(env) };
+    free_jstrings(env, strings);
     unsafe { delete(env, class as jobject) };
     if let Some(error) = exception {
         unsafe { delete(env, object) };

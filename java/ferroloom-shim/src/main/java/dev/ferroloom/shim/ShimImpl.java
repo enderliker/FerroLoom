@@ -25,7 +25,18 @@ public final class ShimImpl {
         return self.fov;
     }
 
-    public static double posX(Entity self) { return ShimRuntime.playerX(); }
-    public static double posY(Entity self) { return ShimRuntime.playerY(); }
-    public static double posZ(Entity self) { return ShimRuntime.playerZ(); }
+    public static double posX(Entity self) {
+        ShimRuntime.requireCallback();
+        return ShimRuntime.playerX();
+    }
+
+    public static double posY(Entity self) {
+        ShimRuntime.requireCallback();
+        return ShimRuntime.playerY();
+    }
+
+    public static double posZ(Entity self) {
+        ShimRuntime.requireCallback();
+        return ShimRuntime.playerZ();
+    }
 }

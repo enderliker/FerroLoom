@@ -27,14 +27,19 @@ public final class GameBridge {
 
     public static void onTick(long tick, double x, double y, double z) {
         ShimRuntime.updatePlayer(x, y, z);
-        for (FerroEvents.TickListener listener : List.copyOf(FerroEvents.TICKS)) {
-            try {
-                listener.onTick(tick, x, y, z);
-            } catch (Throwable failure) {
-                FAILED.add("tick: " + failure);
-                FerroApi.log("listener failed: " + failure);
-                FerroEvents.TICKS.remove(listener);
+        ShimRuntime.enterCallback();
+        try {
+            for (FerroEvents.TickListener listener : List.copyOf(FerroEvents.TICKS)) {
+                try {
+                    listener.onTick(tick, x, y, z);
+                } catch (Throwable failure) {
+                    FAILED.add("tick: " + failure);
+                    FerroApi.log("listener failed: " + failure);
+                    FerroEvents.TICKS.remove(listener);
+                }
             }
+        } finally {
+            ShimRuntime.exitCallback();
         }
     }
 
@@ -65,9 +70,10 @@ public final class GameBridge {
         int space = trimmed.indexOf(' ');
         String name = space < 0 ? trimmed : trimmed.substring(0, space);
         String[] args = space < 0 ? new String[0] : trimmed.substring(space + 1).trim().split("\\s+");
+        String owner = dev.ferroloom.api.FerroRegistrations.commandOwner(name);
         for (FerroEvents.CommandListener listener : List.copyOf(FerroEvents.COMMANDS)) {
             try {
-                if (listener.onCommand(name, name, args)) return true;
+                if (listener.onCommand(owner, name, args)) return true;
             } catch (Throwable failure) {
                 FAILED.add("command: " + failure);
                 FerroApi.log("listener failed: " + failure);
@@ -82,11 +88,14 @@ public final class GameBridge {
     }
 
     public static void onClientSetup() {
+        installClient();
         try {
             FabricLoaderImpl.INSTANCE.invokeEntrypoints("client", ClientModInitializer.class,
                     ClientModInitializer::onInitializeClient);
         } catch (Throwable failure) {
-            throw new IllegalStateException(dev.ferroloom.api.Errors.describe(failure), failure);
+            // A failing client entrypoint is logged with its mod and the game keeps going.
+            FAILED.add("client entrypoint: " + failure);
+            FerroApi.log("client entrypoint failed: " + dev.ferroloom.api.Errors.describe(failure));
         }
     }
 

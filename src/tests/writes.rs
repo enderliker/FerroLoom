@@ -51,3 +51,17 @@ fn chat_and_log_keep_their_order() {
     assert_eq!(report.applied, 2);
     assert_eq!(sink.0, vec!["hello", "pos=1"]);
 }
+
+#[test]
+fn a_foreign_thread_cannot_use_the_game_threads_queue() {
+    let mut queue = WriteQueue::new();
+    let outcome = ferroloom::bridge::writes::with_queue(&mut queue, || {
+        std::thread::spawn(|| {
+            ferroloom::bridge::writes::enqueue_current(WriteOp::Log("foreign".into()))
+        })
+        .join()
+        .unwrap()
+    });
+    assert_eq!(outcome, Err(ferroloom::bridge::window::BridgeError::NotInCallback));
+    assert_eq!(queue.len(), 0);
+}

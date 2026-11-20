@@ -10,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
+import dev.ferroloom.api.FerroApi;
 
 /**
  * The named-jar cache. 26.3 is unobfuscated, so a mod jar is already in the runtime namespace;
@@ -18,21 +19,25 @@ import java.util.List;
 public final class RemapCache {
     private RemapCache() {}
 
-    public static List<Path> ensureNamed(Path modsDir, Path cacheDir) throws IOException, RemapError {
-        return ensureNamedInternal(modsDir, cacheDir);
-    }
+    /** Cached jars plus the jars that were refused, so one old jar never stops the others. */
+    public record CacheResult(List<Path> cached, List<RemapError> refused) {}
 
-    private static List<Path> ensureNamedInternal(Path modsDir, Path cacheDir) throws IOException, RemapError {
-        if (!Files.isDirectory(modsDir)) return List.of();
+    public static CacheResult ensureNamed(Path modsDir, Path cacheDir) throws IOException {
+        if (!Files.isDirectory(modsDir)) return new CacheResult(List.of(), List.of());
         Files.createDirectories(cacheDir);
         List<Path> cached = new ArrayList<>();
+        List<RemapError> refused = new ArrayList<>();
         try (var files = Files.list(modsDir)) {
             for (Path jar : files.filter(p -> p.getFileName().toString().endsWith(".jar")).sorted().toList()) {
-                if (!hasFabricMetadata(jar)) continue;
+                if (!hasFabricMetadata(jar)) {
+                    FerroApi.log("mods: skipping " + jar.getFileName() + ": no fabric.mod.json");
+                    continue;
+                }
                 if (JarNamespace.detect(jar) == Namespace.INTERMEDIARY) {
-                    throw new RemapError(jar.getFileName().toString(),
+                    refused.add(new RemapError(jar.getFileName().toString(),
                             "intermediary names (class_*) are not loadable: Horizon 26.3 is unobfuscated,"
-                                    + " so this jar was built for another Minecraft version");
+                                    + " so this jar was built for another Minecraft version"));
+                    continue;
                 }
                 Path target = cacheDir.resolve(sha256(jar) + "-named.jar");
                 if (!Files.exists(target)) Files.copy(jar, target);
@@ -48,12 +53,16 @@ public final class RemapCache {
                 Files.deleteIfExists(stale);
             }
         }
-        return cached;
+        return new CacheResult(cached, refused);
     }
 
-    private static boolean hasFabricMetadata(Path jar) throws IOException {
+    private static boolean hasFabricMetadata(Path jar) {
         try (var zip = new java.util.zip.ZipFile(jar.toFile())) {
             return zip.getEntry("fabric.mod.json") != null;
+        } catch (IOException unreadable) {
+            // A partial download or a stray non-jar must not stop the other mods.
+            FerroApi.log("mods: skipping " + jar.getFileName() + ": " + unreadable);
+            return false;
         }
     }
 

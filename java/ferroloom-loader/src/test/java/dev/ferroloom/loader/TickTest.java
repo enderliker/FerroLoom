@@ -39,6 +39,7 @@ class TickTest {
         FerroBootstrap.onTick(2, 0, 0, 0);
 
         assertEquals(List.of("second", "second"), ticks);
+        assertEquals(1, FerroEvents.TICKS.size(), "the failing listener is removed");
         assertTrue(GameBridge.failedListeners().get(0).contains("boom"),
                 GameBridge.failedListeners().toString());
     }

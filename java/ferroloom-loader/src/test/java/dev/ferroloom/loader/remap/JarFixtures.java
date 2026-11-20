@@ -29,6 +29,43 @@ final class JarFixtures {
         return jar;
     }
 
+    /** A jar whose only Minecraft reference is inside a method descriptor. */
+    static Path descriptorJar(Path dir, String name, String reference) throws IOException {
+        ClassWriter cw = new ClassWriter(0);
+        cw.visit(Opcodes.V25, Opcodes.ACC_PUBLIC, "example/" + name, null, "java/lang/Object", null);
+        MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, "take", "(L" + reference + ";)V", null, null);
+        mv.visitCode();
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 2);
+        mv.visitEnd();
+        cw.visitEnd();
+        return write(dir, name, cw.toByteArray());
+    }
+
+    /** A jar whose only Minecraft reference is a string in an annotation. */
+    static Path annotationJar(Path dir, String name, String reference) throws IOException {
+        ClassWriter cw = new ClassWriter(0);
+        cw.visit(Opcodes.V25, Opcodes.ACC_PUBLIC, "example/" + name, null, "java/lang/Object", null);
+        var annotation = cw.visitAnnotation("Lexample/Target;", true);
+        annotation.visit("value", reference);
+        annotation.visitEnd();
+        cw.visitEnd();
+        return write(dir, name, cw.toByteArray());
+    }
+
+    private static Path write(Path dir, String name, byte[] cls) throws IOException {
+        Path jar = dir.resolve(name + ".jar");
+        try (OutputStream out = Files.newOutputStream(jar); JarOutputStream zip = new JarOutputStream(out)) {
+            zip.putNextEntry(new JarEntry("fabric.mod.json"));
+            zip.write(("{\"schemaVersion\":1,\"id\":\"" + name + "\",\"version\":\"1.0.0\"}").getBytes(StandardCharsets.UTF_8));
+            zip.closeEntry();
+            zip.putNextEntry(new JarEntry("example/" + name + ".class"));
+            zip.write(cls);
+            zip.closeEntry();
+        }
+        return jar;
+    }
+
     static Path plainJar(Path dir, String name) throws IOException {
         Path jar = dir.resolve(name + ".jar");
         try (OutputStream out = Files.newOutputStream(jar); JarOutputStream zip = new JarOutputStream(out)) {
