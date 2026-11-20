@@ -3,7 +3,10 @@
     "net/minecraft/client/Minecraft",
     "net/minecraft/client/renderer/GameRenderer",
     "net/minecraft/client/Camera",
-    "net/minecraft/client/player/LocalPlayer"
+    "net/minecraft/client/player/LocalPlayer",
+    "net/minecraft/client/Options",
+    "net/minecraft/client/OptionInstance",
+    "net/minecraft/client/gui/Gui"
   ],
   "methods": {
     "net/minecraft/client/Minecraft#getInstance()Lnet/minecraft/client/Minecraft;": {"impl": "dev/ferroloom/shim/ShimImpl.getInstance"},
@@ -12,6 +15,13 @@
     "net/minecraft/client/Camera#getFov()F": {"impl": "dev/ferroloom/shim/ShimImpl.fov"},
     "net/minecraft/world/entity/Entity#getX()D": {"impl": "dev/ferroloom/shim/ShimImpl.posX"},
     "net/minecraft/world/entity/Entity#getY()D": {"impl": "dev/ferroloom/shim/ShimImpl.posY"},
-    "net/minecraft/world/entity/Entity#getZ()D": {"impl": "dev/ferroloom/shim/ShimImpl.posZ"}
+    "net/minecraft/world/entity/Entity#getZ()D": {"impl": "dev/ferroloom/shim/ShimImpl.posZ"},
+    "net/minecraft/client/KeyMapping#<init>(Ljava/lang/String;Lcom/mojang/blaze3d/platform/InputConstants$Type;ILnet/minecraft/client/KeyMapping$Category;)V": {"impl": "dev/ferroloom/shim/ShimImpl.keyMappingInit"},
+    "net/minecraft/client/KeyMapping#isDown()Z": {"impl": "dev/ferroloom/shim/ShimImpl.keyMappingDown"},
+    "net/minecraft/client/Options#sensitivity()Lnet/minecraft/client/OptionInstance;": {"impl": "dev/ferroloom/shim/ShimImpl.sensitivity"},
+    "net/minecraft/client/OptionInstance#get()Ljava/lang/Object;": {"impl": "dev/ferroloom/shim/ShimImpl.optionGet"},
+    "net/minecraft/client/OptionInstance#set(Ljava/lang/Object;)V": {"impl": "dev/ferroloom/shim/ShimImpl.optionSet"},
+    "net/minecraft/util/Mth#clamp(DDD)D": {"impl": "dev/ferroloom/shim/ShimImpl.clamp"},
+    "net/minecraft/client/gui/Gui#screen()Lnet/minecraft/client/gui/screens/Screen;": {"impl": "dev/ferroloom/shim/ShimImpl.screen"}
   }
 }

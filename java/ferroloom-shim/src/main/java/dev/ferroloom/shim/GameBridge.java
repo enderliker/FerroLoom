@@ -9,6 +9,8 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.loader.impl.FabricLoaderImpl;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Options;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 
@@ -52,6 +54,7 @@ public final class GameBridge {
     }
 
     public static void onKey(String modId, String keyId, boolean down) {
+        ShimRuntime.setKey(modId, keyId, down);
         for (FerroEvents.KeyListener listener : List.copyOf(FerroEvents.KEYS)) {
             try {
                 listener.onKey(modId, keyId, down);
@@ -103,11 +106,18 @@ public final class GameBridge {
         return FAILED;
     }
 
+    /** Installs the synthetic client early, before client entrypoints can ask for it. */
+    public static void installClientNow() {
+        installClient();
+    }
+
     private static void installClient() {
         if (ShimRuntime.client() != null) return;
         Minecraft minecraft = new Minecraft();
         minecraft.gameRenderer = new GameRenderer();
         minecraft.player = new LocalPlayer();
+        minecraft.gui = new Gui();
+        minecraft.options = new Options();
         ShimRuntime.installClient(minecraft);
     }
 }

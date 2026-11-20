@@ -2,11 +2,16 @@ package dev.ferroloom.shim;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.mojang.blaze3d.platform.InputConstants$Type;
 import java.nio.file.Path;
 import java.util.jar.JarFile;
 import net.minecraft.client.Camera;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.Options;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.util.Mth;
 import org.junit.jupiter.api.Test;
 
 class ShimSmokeTest {
@@ -43,6 +48,64 @@ class ShimSmokeTest {
         ShimRuntime.updatePlayer(1.0, 2.0, 3.0);
         LocalPlayer p = new LocalPlayer();
         assertThrows(dev.ferroloom.runtime.FerroNotInCallbackException.class, p::getX);
+    }
+
+    @Test
+    void a_key_mapping_registers_its_engine_key_and_reads_the_pushed_state() {
+        dev.ferroloom.api.FerroRegistrations.clear();
+        KeyMapping zoom = new KeyMapping("key.testmod.zoom",
+                InputConstants$Type.KEYBOARD, 25, null);
+        KeyMapping other = new KeyMapping("key.other.zoom",
+                InputConstants$Type.KEYBOARD, 6, null);
+
+        String report = dev.ferroloom.api.FerroRegistrations.report();
+        assertTrue(report.contains("KEY\ttestmod\tzoom\tkey.keyboard.v"), report);
+        assertTrue(report.contains("KEY\tother\tzoom\tkey.keyboard.c"), report);
+        assertFalse(zoom.isDown());
+        ShimRuntime.setKey("testmod", "zoom", true);
+        assertTrue(zoom.isDown());
+        assertFalse(other.isDown());
+        ShimRuntime.setKey("testmod", "zoom", false);
+        assertFalse(zoom.isDown());
+    }
+
+    @Test
+    void zoomx_surface_answers_without_engine_reads() {
+        assertEquals(50.0, Mth.clamp(100.0, 1.0, 50.0));
+
+        Options options = new Options();
+        assertEquals(0.5, ((Double) options.sensitivity().get()).doubleValue());
+        assertTrue(options.sensitivity() == options.sensitivity());
+        options.sensitivity().set(Double.valueOf(0.25));
+        assertEquals(0.25, ((Double) options.sensitivity().get()).doubleValue());
+
+        assertNull(new Gui().screen());
+
+        GameBridge.installClientNow();
+        assertNotNull(Minecraft.getInstance());
+        assertNotNull(Minecraft.getInstance().player);
+        assertNotNull(Minecraft.getInstance().options);
+        assertNotNull(Minecraft.getInstance().gui);
+    }
+
+    @Test
+    void tick_fov_goes_through_calculate_fov_so_mixins_see_it() {
+        class SpyCamera extends Camera {
+            boolean calculated;
+
+            @Override
+            public float calculateFov(float fov) {
+                calculated = true;
+                return fov / 2.0f;
+            }
+        }
+        ShimRuntime.setFovBase(1.0f);
+        SpyCamera camera = new SpyCamera();
+
+        ShimImpl.tickFov(camera);
+
+        assertTrue(camera.calculated, "tickFov must call calculateFov");
+        assertEquals(0.5f, camera.getFov());
     }
 
     @Test

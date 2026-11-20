@@ -17,6 +17,11 @@ public final class FerroRegistrations {
     private FerroRegistrations() {}
 
     public static synchronized void key(String modId, String keyId, String defaultKey) {
+        // A key can arrive twice: once from the KeyMapping constructor and once from
+        // KeyMappingHelper.registerKeyMapping. The first binding (with its real default) wins.
+        for (Key key : KEYS) {
+            if (key.modId().equals(modId) && key.keyId().equals(keyId)) return;
+        }
         KEYS.add(new Key(modId, keyId, defaultKey));
     }
 

@@ -1,5 +1,7 @@
 package dev.ferroloom.shim;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Camera;
 
 /** The state the engine pushes into the shim before each hook call. */
@@ -12,6 +14,7 @@ public final class ShimRuntime {
     private static double playerY;
     private static double playerZ;
     private static float fovBase;
+    private static final Map<String, Boolean> KEYS = new ConcurrentHashMap<>();
 
     private ShimRuntime() {}
 
@@ -61,5 +64,61 @@ public final class ShimRuntime {
     public static Camera camera() {
         if (camera == null) camera = new Camera();
         return camera;
+    }
+
+    /** Records the engine's current state for the key a mod registered (ids as in the report). */
+    public static void setKey(String modId, String keyId, boolean down) {
+        KEYS.put(stateId(modId, keyId), down);
+    }
+
+    /** The pushed state of a mod's key, looked up by its translation key (`key.zoomx.zoom`). */
+    public static boolean keyDown(String translationKey) {
+        return Boolean.TRUE.equals(KEYS.get(stateId(keyModId(translationKey), keyId(translationKey))));
+    }
+
+    /** The id the Registrar and the engine use: `<mod>_<key>`. */
+    public static String stateId(String modId, String keyId) {
+        return modId + "_" + keyId;
+    }
+
+    public static String keyModId(String translationKey) {
+        String rest = stripKeyPrefix(translationKey);
+        int dot = rest.indexOf('.');
+        return dot < 0 ? rest : rest.substring(0, dot);
+    }
+
+    public static String keyId(String translationKey) {
+        String rest = stripKeyPrefix(translationKey);
+        int dot = rest.indexOf('.');
+        return dot < 0 ? rest : rest.substring(dot + 1).replace('.', '_');
+    }
+
+    /**
+     * Horizon's key name for a Minecraft 26.3 key code. 26.3 uses SDL/HID scancodes (`KEY_C` is
+     * 6, not 67), so letters start at 4 and digits at 30.
+     */
+    public static String keyName(int scancode) {
+        if (scancode >= 4 && scancode <= 29) {
+            return "key.keyboard." + (char) ('a' + scancode - 4);
+        }
+        if (scancode >= 30 && scancode <= 38) {
+            return "key.keyboard." + (char) ('1' + scancode - 30);
+        }
+        return switch (scancode) {
+            case 39 -> "key.keyboard.0";
+            case 40 -> "key.keyboard.enter";
+            case 41 -> "key.keyboard.escape";
+            case 43 -> "key.keyboard.tab";
+            case 44 -> "key.keyboard.space";
+            case 224 -> "key.keyboard.left.control";
+            case 225 -> "key.keyboard.left.shift";
+            case 226 -> "key.keyboard.left.alt";
+            default -> "key.keyboard.unknown";
+        };
+    }
+
+    private static String stripKeyPrefix(String translationKey) {
+        if (translationKey == null || translationKey.isEmpty()) return "mod";
+        return translationKey.startsWith("key.") ? translationKey.substring(4) : translationKey;
     }
 }
