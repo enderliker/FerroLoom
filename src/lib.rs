@@ -20,11 +20,11 @@ struct Mod;
 
 #[mod_api::horizon_mod]
 impl Hooks for Mod {
-    fn register(&self, _registrar: &mut dyn Registrar, context: &RegistrationContext) {
+    fn register(&self, registrar: &mut dyn Registrar, context: &RegistrationContext) {
         #[cfg(not(target_arch = "wasm32"))]
-        horizon::register(context);
+        horizon::register(context, registrar);
         #[cfg(target_arch = "wasm32")]
-        let _ = context;
+        let _ = (context, registrar);
     }
 
     fn client_tick_pre(&self, host: &mut dyn ClientHost, _event: &mut ClientTickPreEvent) {

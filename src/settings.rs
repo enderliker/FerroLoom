@@ -10,6 +10,8 @@ pub struct Settings {
     pub lib_dir: Option<PathBuf>,
     pub minecraft_roots: Vec<PathBuf>,
     pub xmx_mib: u32,
+    pub mods_dir: PathBuf,
+    pub cache_dir: PathBuf,
 }
 
 impl Settings {
@@ -17,7 +19,13 @@ impl Settings {
         let xmx = std::env::var("FERROLOOM_XMX_MIB").ok();
         let java_home = std::env::var("FERROLOOM_JAVA_HOME").ok();
         let lib_dir = std::env::var("FERROLOOM_LIB_DIR").ok();
-        let mut settings = Settings::parse(xmx.as_deref(), java_home.as_deref(), lib_dir.as_deref());
+        let mut settings = Settings::parse_with(
+            xmx.as_deref(),
+            java_home.as_deref(),
+            lib_dir.as_deref(),
+            std::env::var("FERROLOOM_MODS_DIR").ok().as_deref(),
+            std::env::var("FERROLOOM_CACHE_DIR").ok().as_deref(),
+        );
 
         settings.minecraft_roots = std::env::var("FERROLOOM_MC_RUNTIME")
             .map(|value| value.split(':').map(PathBuf::from).collect())
@@ -44,15 +52,35 @@ impl Settings {
     }
 
     pub fn parse(xmx: Option<&str>, java_home: Option<&str>, lib_dir: Option<&str>) -> Settings {
+        Settings::parse_with(xmx, java_home, lib_dir, None, None)
+    }
+
+    pub fn parse_with(
+        xmx: Option<&str>,
+        java_home: Option<&str>,
+        lib_dir: Option<&str>,
+        mods_dir: Option<&str>,
+        cache_dir: Option<&str>,
+    ) -> Settings {
         let xmx_mib = xmx
             .and_then(|value| value.trim().parse::<u32>().ok())
             .unwrap_or(DEFAULT_XMX_MIB)
             .clamp(MIN_XMX_MIB, MAX_XMX_MIB);
+        let base = lib_dir
+            .map(PathBuf::from)
+            .and_then(|dir| dir.parent().map(PathBuf::from))
+            .or_else(|| {
+                std::env::var_os("HOME")
+                    .map(|home| PathBuf::from(home).join(".local/share/horizon"))
+            })
+            .unwrap_or_else(|| PathBuf::from("."));
         Settings {
             java_home: java_home.map(PathBuf::from),
             lib_dir: lib_dir.map(PathBuf::from),
             minecraft_roots: Vec::new(),
             xmx_mib,
+            mods_dir: mods_dir.map(PathBuf::from).unwrap_or_else(|| base.join("ferroloom-mods")),
+            cache_dir: cache_dir.map(PathBuf::from).unwrap_or_else(|| base.join("ferroloom-cache")),
         }
     }
 }

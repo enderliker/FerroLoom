@@ -9,6 +9,7 @@ mod jni_ops;
 mod jvm_libjvm;
 mod jvm_locate;
 mod jvm_start;
+mod registrations;
 mod settings;
 mod tick_roundtrip;
 mod writes;

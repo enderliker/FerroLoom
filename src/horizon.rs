@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 
-use mod_api::{ClientHost, RegistrationContext};
+use mod_api::{ClientHost, KeyRegistration, RegistrationContext, Registrar};
 
+use crate::bridge::registrations::{self, PendingRegistrations};
 use crate::bridge::upcall::{on_client_tick, TickHost};
 use crate::bridge::window::EngineWindow;
 use crate::bridge::writes::WriteQueue;
@@ -13,6 +14,7 @@ use crate::settings::Settings;
 
 static JVM: OnceLock<Jvm> = OnceLock::new();
 static TICKS: AtomicU64 = AtomicU64::new(0);
+static REGISTRATIONS: OnceLock<PendingRegistrations> = OnceLock::new();
 
 /// The mod's own log, beside the game's files (`<instance home>/ferroloom.log`).
 fn log_line(message: &str) {
@@ -46,7 +48,7 @@ impl EngineWindow for ClientWindow<'_> {
     }
 }
 
-pub fn register(context: &RegistrationContext) {
+pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
     let settings = Settings::from_env();
     let Some(lib_dir) = settings.lib_dir.clone() else {
         context.message(
@@ -54,15 +56,17 @@ pub fn register(context: &RegistrationContext) {
         );
         return;
     };
-    let runtime_jar = lib_dir.join("ferroloom-runtime.jar");
-    if !runtime_jar.is_file() {
-        let message = format!(
-            "FerroLoom: {} not found; set FERROLOOM_LIB_DIR to the folder with ferroloom-runtime.jar",
-            runtime_jar.display()
-        );
-        log_line(&format!("register failed: {message}"));
-        context.message(&message);
-        return;
+    for required in ["ferroloom-runtime.jar", "ferroloom-loader.jar", "ferro-shim.jar"] {
+        let jar = lib_dir.join(required);
+        if !jar.is_file() {
+            let message = format!(
+                "FerroLoom: {} not found; set FERROLOOM_LIB_DIR to the staged runtime folder",
+                jar.display()
+            );
+            log_line(&format!("register failed: {message}"));
+            context.message(&message);
+            return;
+        }
     }
 
     log_line(&format!(
@@ -94,17 +98,59 @@ pub fn register(context: &RegistrationContext) {
         progress.step();
     }
 
+    let classpath = match registrations::classpath(&lib_dir) {
+        Ok(classpath) => classpath,
+        Err(error) => {
+            log_line(&format!("register failed: {error}"));
+            context.message(&format!("FerroLoom: {error}"));
+            return;
+        }
+    };
+    let game_dir = std::env::var_os("HOME")
+        .map(|home| PathBuf::from(home).join(".local/share/horizon"))
+        .unwrap_or_else(|| PathBuf::from("."));
     let config = JvmConfig {
         java_home: home.path,
-        classpath: vec![runtime_jar],
+        classpath,
         xmx_mib: settings.xmx_mib,
-        options: vec![],
+        options: vec![
+            format!("-Dferro.modsDir={}", settings.mods_dir.display()),
+            format!("-Dferro.cacheDir={}", settings.cache_dir.display()),
+            format!("-Dferro.shimDir={}", lib_dir.display()),
+            format!("-Dferro.gameDir={}", game_dir.display()),
+        ],
     };
     match Jvm::start(&config) {
         Ok(jvm) => {
+            match jvm.call_static_string(
+                "dev/ferroloom/loader/FerroBootstrap",
+                "start",
+                "()Ljava/lang/String;",
+                &[],
+            ) {
+                Ok(report) => {
+                    let pending = PendingRegistrations::parse(&report);
+                    for key in &pending.keys {
+                        registrar.register_key_mapping(KeyRegistration::new(
+                            &format!("{}:{}", key.mod_id, key.key_id),
+                            &key.default_key,
+                        ));
+                    }
+                    log_line(&format!(
+                        "JVM ready; loader started; {} key(s), {} command(s), hud={}",
+                        pending.keys.len(),
+                        pending.commands.len(),
+                        pending.hud
+                    ));
+                    context.message("FerroLoom: Fabric Loader ready");
+                    let _ = REGISTRATIONS.set(pending);
+                }
+                Err(error) => {
+                    log_line(&format!("loader start failed: {error}"));
+                    context.message(&format!("FerroLoom: {error}"));
+                }
+            }
             let _ = JVM.set(jvm);
-            log_line("JVM ready");
-            context.message("FerroLoom: JVM ready");
             if let Some(progress) = progress.as_mut() {
                 progress.step();
             }
