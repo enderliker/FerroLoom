@@ -1,6 +1,6 @@
-use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::ptr::NonNull;
+use std::sync::Mutex;
 
 use super::window::BridgeError;
 
@@ -23,32 +23,6 @@ pub struct DrainReport {
 pub struct WriteQueue {
     ops: VecDeque<WriteOp>,
     next_index: usize,
-}
-
-thread_local! {
-    static CURRENT: RefCell<Option<NonNull<WriteQueue>>> = const { RefCell::new(None) };
-}
-
-struct Restore(Option<NonNull<WriteQueue>>);
-
-impl Drop for Restore {
-    fn drop(&mut self) {
-        CURRENT.with(|current| *current.borrow_mut() = self.0);
-    }
-}
-
-/// Makes `queue` the destination of `enqueue_current` on this thread.
-pub fn with_queue<R>(queue: &mut WriteQueue, f: impl FnOnce() -> R) -> R {
-    let pointer = NonNull::from(queue);
-    let previous = CURRENT.with(|current| current.borrow_mut().replace(pointer));
-    let _restore = Restore(previous);
-    f()
-}
-
-pub fn enqueue_current(op: WriteOp) -> Result<(), BridgeError> {
-    let mut pointer = CURRENT.with(|current| *current.borrow()).ok_or(BridgeError::NotInCallback)?;
-    unsafe { pointer.as_mut() }.enqueue(op);
-    Ok(())
 }
 
 impl WriteQueue {
@@ -81,4 +55,37 @@ impl WriteQueue {
         }
         report
     }
+}
+
+struct QueueCell(NonNull<WriteQueue>);
+
+// SAFETY: the cell is only reachable while `with_queue` is running, and the thread that set it
+// blocks while the bridge thread uses it.
+unsafe impl Send for QueueCell {}
+
+static CURRENT: Mutex<Option<QueueCell>> = Mutex::new(None);
+
+/// Makes `queue` the destination of `enqueue_current`.
+pub fn with_queue<R>(queue: &mut WriteQueue, f: impl FnOnce() -> R) -> R {
+    let previous = CURRENT.lock().unwrap().replace(QueueCell(NonNull::from(&mut *queue)));
+    struct Restore(Option<QueueCell>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            *CURRENT.lock().unwrap() = self.0.take();
+        }
+    }
+    let _restore = Restore(previous);
+    f()
+}
+
+pub fn enqueue_current(op: WriteOp) -> Result<(), BridgeError> {
+    let pointer = {
+        let guard = CURRENT.lock().unwrap();
+        guard.as_ref().map(|cell| cell.0)
+    };
+    let Some(mut pointer) = pointer else {
+        return Err(BridgeError::NotInCallback);
+    };
+    unsafe { pointer.as_mut() }.enqueue(op);
+    Ok(())
 }

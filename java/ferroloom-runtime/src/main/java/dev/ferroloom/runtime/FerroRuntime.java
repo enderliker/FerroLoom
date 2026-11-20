@@ -3,8 +3,14 @@ package dev.ferroloom.runtime;
 /** The Java side of the FerroLoom bridge. */
 public final class FerroRuntime {
     private static volatile boolean stopped;
+    private static double[] position;
 
     private FerroRuntime() {}
+
+    /** The player's position, pushed by the game thread before each tick. */
+    public static void setPosition(double x, double y, double z) {
+        position = new double[] {x, y, z};
+    }
 
     public static String ping() {
         return "pong";
@@ -15,12 +21,13 @@ public final class FerroRuntime {
         if (stopped) {
             return;
         }
-        double[] position = FerroNative.playerPosition();
-        if (position == null || position.length < 3) {
+        double[] current = position;
+        if (current == null || current.length < 3) {
+            FerroNative.callString(3, "no position tick=" + tick);
             return;
         }
         String text =
-                "pos=" + position[0] + "," + position[1] + "," + position[2] + " tick=" + tick;
+                "pos=" + current[0] + "," + current[1] + "," + current[2] + " tick=" + tick;
         FerroNative.callString(3, text);
     }
 

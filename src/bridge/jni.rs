@@ -1,54 +1,87 @@
 use std::any::Any;
-use std::ffi::c_void;
+use std::ffi::CString;
+use std::os::raw::{c_char, c_void};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
-use jni::objects::JString;
-use jni::sys::{
-    jclass, jdoubleArray, jint, jlong, jstring, JNIEnv as RawJNIEnv,
-};
-use jni::{JNIEnv, NativeMethod};
+use crate::jni_sys::*;
+use crate::jvm::{delete, java_string, JvmError};
 
 use super::ops::Op;
 use super::writes::{self, WriteOp};
-use crate::jvm::{Jvm, JvmError};
 
 pub const FERRO_NATIVE_CLASS: &str = "dev/ferroloom/runtime/FerroNative";
 
 /// Binds the Java class's `native` methods to the Rust functions below. Native method lookup by
 /// symbol would need the host binary's symbols exported; registering is explicit and portable.
-pub fn register_natives(jvm: &Jvm) -> Result<(), JvmError> {
-    jvm.with_env(|env| {
-        let class = env
-            .find_class(FERRO_NATIVE_CLASS)
-            .map_err(|error| JvmError::Jni {
-                reason: error.to_string(),
-            })?;
+pub fn register_natives(env: *mut JNIEnv) -> Result<(), JvmError> {
+    unsafe {
+        let class = find_class(env, FERRO_NATIVE_CLASS)?;
         let methods = [
-            NativeMethod {
-                name: "call".into(),
-                sig: "(IJ)J".into(),
-                fn_ptr: ferroloom_call as *mut c_void,
+            JNINativeMethod {
+                name: c"call".as_ptr() as *mut c_char,
+                signature: c"(IJ)J".as_ptr() as *mut c_char,
+                fnPtr: ferroloom_call as *mut c_void,
             },
-            NativeMethod {
-                name: "callString".into(),
-                sig: "(ILjava/lang/String;)Ljava/lang/String;".into(),
-                fn_ptr: ferroloom_call_string as *mut c_void,
-            },
-            NativeMethod {
-                name: "playerPosition".into(),
-                sig: "()[D".into(),
-                fn_ptr: ferroloom_player_position as *mut c_void,
+            JNINativeMethod {
+                name: c"callString".as_ptr() as *mut c_char,
+                signature: c"(ILjava/lang/String;)Ljava/lang/String;".as_ptr() as *mut c_char,
+                fnPtr: ferroloom_call_string as *mut c_void,
             },
         ];
-        env.register_native_methods(&class, &methods)
-            .map_err(|error| JvmError::Jni {
-                reason: error.to_string(),
-            })
-    })?
+        let register = (**env).RegisterNatives.ok_or_else(|| JvmError::Jni {
+            reason: "RegisterNatives is missing".to_string(),
+        })?;
+        let code = register(env, class, methods.as_ptr(), methods.len() as jint);
+        delete(env, class as jobject);
+        if code != 0 {
+            return Err(JvmError::Jni {
+                reason: format!("RegisterNatives returned {code}"),
+            });
+        }
+        Ok(())
+    }
+}
+
+unsafe fn find_class(env: *mut JNIEnv, name: &str) -> Result<jclass, JvmError> {
+    let name = CString::new(name).map_err(|_| JvmError::Jni {
+        reason: "class name contains NUL".to_string(),
+    })?;
+    let find = (unsafe { (**env).FindClass }).ok_or_else(|| JvmError::Jni {
+        reason: "FindClass is missing".to_string(),
+    })?;
+    let class = unsafe { find(env, name.as_ptr()) };
+    if class.is_null() {
+        if let Some(error) = unsafe { crate::jvm::take_exception(env) } {
+            return Err(error);
+        }
+        return Err(JvmError::Jni {
+            reason: format!("class not found: {name:?}"),
+        });
+    }
+    Ok(class)
+}
+
+unsafe fn throw(env: *mut JNIEnv, message: &str) {
+    let text = match CString::new(format!("ferroloom: internal error: {message}")) {
+        Ok(text) => text,
+        Err(_) => return,
+    };
+    let find = match unsafe { (**env).FindClass } {
+        Some(find) => find,
+        None => return,
+    };
+    let class = unsafe { find(env, c"java/lang/RuntimeException".as_ptr()) };
+    if class.is_null() {
+        return;
+    }
+    if let Some(throw_new) = unsafe { (**env).ThrowNew } {
+        unsafe { throw_new(env, class, text.as_ptr()) };
+    }
+    unsafe { delete(env, class as jobject) };
 }
 
 unsafe extern "system" fn ferroloom_call(
-    env: *mut RawJNIEnv,
+    env: *mut JNIEnv,
     _class: jclass,
     op: jint,
     a: jlong,
@@ -56,7 +89,7 @@ unsafe extern "system" fn ferroloom_call(
     match catch_unwind(AssertUnwindSafe(|| dispatch_call(op, a))) {
         Ok(value) => value,
         Err(payload) => {
-            throw(env, &panic_message(payload));
+            unsafe { throw(env, &panic_message(payload)) };
             0
         }
     }
@@ -71,57 +104,27 @@ fn dispatch_call(op: jint, a: jlong) -> jlong {
 }
 
 unsafe extern "system" fn ferroloom_call_string(
-    env: *mut RawJNIEnv,
+    env: *mut JNIEnv,
     _class: jclass,
     op: jint,
     text: jstring,
 ) -> jstring {
     let outcome = catch_unwind(AssertUnwindSafe(|| {
-        let mut env = unsafe { JNIEnv::from_raw(env) }.ok()?;
-        let input = unsafe { JString::from_raw(text) };
-        let input = env.get_string(&input).ok()?.to_string_lossy().into_owned();
+        let input = unsafe { java_string(env, text) }.unwrap_or_default();
         if matches!(Op::from_i32(op), Some(Op::Log)) {
             let _ = writes::enqueue_current(WriteOp::Log(input.clone()));
         }
-        env.new_string(input).ok().map(|value| value.into_raw())
+        let out = CString::new(input).ok()?;
+        let new_string = unsafe { (**env).NewStringUTF }?;
+        Some(unsafe { new_string(env, out.as_ptr()) })
     }));
     match outcome {
         Ok(Some(value)) => value,
         Ok(None) => std::ptr::null_mut(),
         Err(payload) => {
-            throw(env, &panic_message(payload));
+            unsafe { throw(env, &panic_message(payload)) };
             std::ptr::null_mut()
         }
-    }
-}
-
-unsafe extern "system" fn ferroloom_player_position(
-    env: *mut RawJNIEnv,
-    _class: jclass,
-) -> jdoubleArray {
-    let outcome = catch_unwind(AssertUnwindSafe(|| {
-        let env = unsafe { JNIEnv::from_raw(env) }.ok()?;
-        let [x, y, z] = crate::bridge::window::current_player_pos().ok()?;
-        let array = env.new_double_array(3).ok()?;
-        env.set_double_array_region(&array, 0, &[x, y, z]).ok()?;
-        Some(array.into_raw())
-    }));
-    match outcome {
-        Ok(Some(value)) => value,
-        Ok(None) => std::ptr::null_mut(),
-        Err(payload) => {
-            throw(env, &panic_message(payload));
-            std::ptr::null_mut()
-        }
-    }
-}
-
-fn throw(env: *mut RawJNIEnv, message: &str) {
-    if let Ok(mut env) = unsafe { JNIEnv::from_raw(env) } {
-        let _ = env.throw_new(
-            "java/lang/RuntimeException",
-            format!("ferroloom: internal error: {message}"),
-        );
     }
 }
 

@@ -30,6 +30,16 @@ impl Settings {
                 }
             }
         }
+        // Plan 1 dev fallback: the launcher's Play button does not pass FERROLOOM_LIB_DIR to the
+        // game, so look for the staged runtime jar in the instance home.
+        if settings.lib_dir.is_none() {
+            if let Some(home) = std::env::var_os("HOME") {
+                let staged = PathBuf::from(home).join(".local/share/horizon/ferroloom-lib");
+                if staged.join("ferroloom-runtime.jar").is_file() {
+                    settings.lib_dir = Some(staged);
+                }
+            }
+        }
         settings
     }
 

@@ -1,4 +1,24 @@
-use jni::objects::JValue;
+use crate::jvm::Arg;
+
+#[test]
+fn a_fresh_thread_attaches_and_calls() {
+    let Some(jvm) = super::jvm() else {
+        eprintln!("skip: no JDK or runtime jar");
+        return;
+    };
+    let value = std::thread::spawn(move || {
+        jvm.call_static(
+            "dev/ferroloom/runtime/FerroNative",
+            "call",
+            "(IJ)J",
+            &[Arg::Int(1), Arg::Long(41)],
+        )
+    })
+    .join()
+    .unwrap()
+    .expect("call from a fresh thread");
+    assert_eq!(value, 42);
+}
 
 #[test]
 fn ping_round_trips_and_panic_becomes_a_java_exception() {
@@ -12,7 +32,7 @@ fn ping_round_trips_and_panic_becomes_a_java_exception() {
             "dev/ferroloom/runtime/FerroNative",
             "call",
             "(IJ)J",
-            &[JValue::Int(1), JValue::Long(41)],
+            &[Arg::Int(1), Arg::Long(41)],
         )
         .expect("ping call");
     assert_eq!(out, 42);
@@ -24,7 +44,7 @@ fn ping_round_trips_and_panic_becomes_a_java_exception() {
         "dev/ferroloom/runtime/FerroNative",
         "call",
         "(IJ)J",
-        &[JValue::Int(99), JValue::Long(0)],
+        &[Arg::Int(99), Arg::Long(0)],
     );
     std::panic::set_hook(previous);
     let error = error.unwrap_err();

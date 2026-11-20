@@ -26,6 +26,7 @@ fn java_reads_position_and_its_log_write_is_applied_after_the_call() {
     let report = on_client_tick(
         jvm,
         7,
+        Some([1.5, 64.0, -2.5]),
         TickHost {
             window: &mut window,
             writes: &mut writes,

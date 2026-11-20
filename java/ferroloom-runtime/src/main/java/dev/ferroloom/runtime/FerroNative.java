@@ -7,6 +7,4 @@ public final class FerroNative {
     public static native long call(int op, long a);
 
     public static native String callString(int op, String text);
-
-    public static native double[] playerPosition();
 }

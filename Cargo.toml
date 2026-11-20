@@ -14,7 +14,6 @@ path = "src/lib.rs"
 horizon-mod-api = { path = ".horizon/sdk/api/crates/horizon-mod-api" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-jni = { version = "0.21", features = ["invocation"] }
 libloading = "0.8"
 
 [dev-dependencies]

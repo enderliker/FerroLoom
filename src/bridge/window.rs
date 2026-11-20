@@ -1,5 +1,6 @@
-use std::cell::RefCell;
 use std::ptr::NonNull;
+use std::sync::Mutex;
+use std::thread::ThreadId;
 
 /// What the engine exposes while a hook is calling into Java.
 pub trait EngineWindow {
@@ -15,38 +16,68 @@ pub enum BridgeError {
     Unavailable,
 }
 
-thread_local! {
-    static CURRENT: RefCell<Option<NonNull<dyn EngineWindow>>> = const { RefCell::new(None) };
+struct WindowCell {
+    window: NonNull<dyn EngineWindow>,
+    setter: ThreadId,
 }
 
-struct Restore(Option<NonNull<dyn EngineWindow>>);
+// SAFETY: the cell is only reachable while `with_window` is running, and the thread that set it
+// blocks while the bridge thread uses it.
+unsafe impl Send for WindowCell {}
 
-impl Drop for Restore {
-    fn drop(&mut self) {
-        CURRENT.with(|current| *current.borrow_mut() = self.0);
-    }
+static CURRENT: Mutex<Option<WindowCell>> = Mutex::new(None);
+static ENGINE_THREAD: Mutex<Option<ThreadId>> = Mutex::new(None);
+
+/// The thread that created the JVM and serves every call. Reads are allowed from it even though
+/// the window was set by the game thread.
+pub(crate) fn set_engine_thread(id: ThreadId) {
+    *ENGINE_THREAD.lock().unwrap() = Some(id);
 }
 
-/// Runs `f` with `window` visible to `current_player_pos` and `current_log` on this thread.
-///
-/// The window is a borrowed trait object; it is raised to `'static` only for the duration of this
-/// call, is reachable only from this thread, and is lowered by the guard before the borrow ends.
+fn allowed(setter: ThreadId) -> bool {
+    let current = std::thread::current().id();
+    current == setter || *ENGINE_THREAD.lock().unwrap() == Some(current)
+}
+
+/// Runs `f` with `window` visible to the JNI callbacks on this thread (and on the engine thread).
 pub fn with_window<R>(window: &mut dyn EngineWindow, f: impl FnOnce() -> R) -> R {
+    // The cell outlives the borrow only for the duration of `f`; the guard restores it before the
+    // borrow ends.
     let extended: &mut (dyn EngineWindow + 'static) = unsafe { std::mem::transmute(window) };
-    let pointer = NonNull::from(extended);
-    let previous = CURRENT.with(|current| current.borrow_mut().replace(pointer));
+    let cell = WindowCell {
+        window: NonNull::from(extended),
+        setter: std::thread::current().id(),
+    };
+    let previous = CURRENT.lock().unwrap().replace(cell);
+    struct Restore(Option<WindowCell>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            *CURRENT.lock().unwrap() = self.0.take();
+        }
+    }
     let _restore = Restore(previous);
     f()
 }
 
+fn current_window() -> Result<NonNull<dyn EngineWindow>, BridgeError> {
+    let pointer = {
+        let guard = CURRENT.lock().unwrap();
+        let cell = guard.as_ref().ok_or(BridgeError::NotInCallback)?;
+        if !allowed(cell.setter) {
+            return Err(BridgeError::NotInCallback);
+        }
+        cell.window
+    };
+    Ok(pointer)
+}
+
 pub fn current_player_pos() -> Result<[f64; 3], BridgeError> {
-    let pointer = CURRENT.with(|current| *current.borrow()).ok_or(BridgeError::NotInCallback)?;
+    let pointer = current_window()?;
     unsafe { pointer.as_ref().read_player_pos() }.ok_or(BridgeError::Unavailable)
 }
 
 pub fn current_log(message: &str) -> Result<(), BridgeError> {
-    let mut pointer =
-        CURRENT.with(|current| *current.borrow()).ok_or(BridgeError::NotInCallback)?;
+    let mut pointer = current_window()?;
     unsafe { pointer.as_mut() }.log(message);
     Ok(())
 }

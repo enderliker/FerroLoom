@@ -5,6 +5,8 @@ pub mod bridge;
 #[cfg(not(target_arch = "wasm32"))]
 mod horizon;
 #[cfg(not(target_arch = "wasm32"))]
+mod jni_sys;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod jvm;
 pub mod settings;
 
