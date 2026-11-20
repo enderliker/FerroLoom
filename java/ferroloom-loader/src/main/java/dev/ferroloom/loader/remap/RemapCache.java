@@ -18,13 +18,22 @@ import java.util.List;
 public final class RemapCache {
     private RemapCache() {}
 
-    public static List<Path> ensureNamed(Path modsDir, Path cacheDir) throws IOException {
+    public static List<Path> ensureNamed(Path modsDir, Path cacheDir) throws IOException, RemapError {
+        return ensureNamedInternal(modsDir, cacheDir);
+    }
+
+    private static List<Path> ensureNamedInternal(Path modsDir, Path cacheDir) throws IOException, RemapError {
         if (!Files.isDirectory(modsDir)) return List.of();
         Files.createDirectories(cacheDir);
         List<Path> cached = new ArrayList<>();
         try (var files = Files.list(modsDir)) {
             for (Path jar : files.filter(p -> p.getFileName().toString().endsWith(".jar")).sorted().toList()) {
                 if (!hasFabricMetadata(jar)) continue;
+                if (JarNamespace.detect(jar) == Namespace.INTERMEDIARY) {
+                    throw new RemapError(jar.getFileName().toString(),
+                            "intermediary names (class_*) are not loadable: Horizon 26.3 is unobfuscated,"
+                                    + " so this jar was built for another Minecraft version");
+                }
                 Path target = cacheDir.resolve(sha256(jar) + "-named.jar");
                 if (!Files.exists(target)) Files.copy(jar, target);
                 cached.add(target);

@@ -4,6 +4,7 @@ val loaderJar = rootProject.file(".runtime/fabric/fabric-loader-0.20.1.jar")
 
 dependencies {
     compileOnly(files(loaderJar))
+    implementation(files(rootProject.file(".runtime/fabric/asm.jar")))
     testImplementation(platform("org.junit:junit-bom:5.11.4"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

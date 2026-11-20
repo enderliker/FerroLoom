@@ -1,6 +1,7 @@
 package dev.ferroloom.loader;
 
 import dev.ferroloom.loader.remap.RemapCache;
+import dev.ferroloom.loader.remap.RemapError;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -51,6 +52,8 @@ public final class FerroBootstrap {
 
         try {
             RemapCache.ensureNamed(modsDir(), cacheDir());
+        } catch (RemapError e) {
+            throw new IllegalStateException("FerroLoom: " + e.getMessage(), e);
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
