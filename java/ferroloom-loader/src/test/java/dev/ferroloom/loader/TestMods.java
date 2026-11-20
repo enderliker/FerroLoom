@@ -124,6 +124,55 @@ public final class TestMods {
         return jar;
     }
 
+    /** A mod whose Mixin divides {@code Camera.calculateFov}'s return value, like a zoom mod. */
+    public static Path fovCalculateMixinJar(Path modsDir) throws IOException {
+        String source = """
+                package testfovcalc.mixin;
+                @org.spongepowered.asm.mixin.Mixin(net.minecraft.client.Camera.class)
+                public class CameraMixin {
+                    @org.spongepowered.asm.mixin.injection.Inject(
+                            method = "calculateFov(F)F",
+                            at = @org.spongepowered.asm.mixin.injection.At("RETURN"),
+                            cancellable = true)
+                    private void divideFov(
+                            org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Float> cir) {
+                        cir.setReturnValue(cir.getReturnValueF() / 3.0f);
+                    }
+                }
+                """;
+        Path work = Files.createTempDirectory("fl-fovcalc");
+        Path classes = Files.createDirectories(work.resolve("classes"));
+        Path src = work.resolve("src/testfovcalc/mixin/CameraMixin.java");
+        Files.createDirectories(src.getParent());
+        Files.writeString(src, source);
+        JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        int rc = compiler.run(null, null, null, "--release", "21", "-classpath",
+                System.getProperty("java.class.path"), "-d", classes.toString(), src.toString());
+        if (rc != 0) throw new IllegalStateException("calculateFov mixin failed to compile");
+
+        Path jar = Files.createDirectories(modsDir).resolve("fovcalcmod.jar");
+        try (OutputStream out = Files.newOutputStream(jar); JarOutputStream zout = new JarOutputStream(out)) {
+            zout.putNextEntry(new JarEntry("fabric.mod.json"));
+            zout.write(("{\"schemaVersion\":1,\"id\":\"fovcalcmod\",\"version\":\"1.0.0\","
+                    + "\"environment\":\"client\",\"mixins\":[\"fovcalc.mixins.json\"],"
+                    + "\"depends\":{\"minecraft\":\">=26.3\"}}").getBytes(StandardCharsets.UTF_8));
+            zout.closeEntry();
+            zout.putNextEntry(new JarEntry("fovcalc.mixins.json"));
+            zout.write(("{\"required\":true,\"package\":\"testfovcalc.mixin\",\"client\":[\"CameraMixin\"],"
+                    + "\"compatibilityLevel\":\"JAVA_21\",\"injectors\":{\"defaultRequire\":1}}")
+                    .getBytes(StandardCharsets.UTF_8));
+            zout.closeEntry();
+            try (var files = Files.walk(classes)) {
+                for (Path file : files.filter(Files::isRegularFile).toList()) {
+                    zout.putNextEntry(new JarEntry(classes.relativize(file).toString().replace('\\', '/')));
+                    zout.write(Files.readAllBytes(file));
+                    zout.closeEntry();
+                }
+            }
+        }
+        return jar;
+    }
+
     /** A client-only mod whose mixin injects into a method that does not exist. */
     public static Path brokenMixinJar(Path modsDir) throws IOException {
         String source = """

@@ -4,6 +4,7 @@ use std::sync::OnceLock;
 use crate::jvm::{Jvm, JvmConfig, locate_for_test};
 
 mod failures;
+mod fov;
 mod handles;
 mod jni_ops;
 mod jvm_libjvm;

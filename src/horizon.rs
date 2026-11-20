@@ -16,7 +16,13 @@ static JVM: OnceLock<Jvm> = OnceLock::new();
 static TICKS: AtomicU64 = AtomicU64::new(0);
 static REGISTRATIONS: OnceLock<PendingRegistrations> = OnceLock::new();
 static FOV_ERROR_LOGGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static LAST_FOV: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(u32::MAX);
 static KEY_STATE: std::sync::Mutex<Vec<bool>> = std::sync::Mutex::new(Vec::new());
+
+/// The line `compute_fov_modifier` logs when a mod changed the scale (zoom in or out).
+pub(crate) fn fov_line(base: f32, modifier: f32) -> String {
+    format!("fov: modifier {modifier:.4} (base {base:.4})")
+}
 
 /// The mod's own log, beside the game's files (`<instance home>/ferroloom.log`).
 fn log_line(message: &str) {
@@ -132,7 +138,10 @@ pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
             format!("-Dferro.gameDir={}", game_dir.display()),
             // FerroFabric-API is a builtin mod, not part of the parent class path; the provider
             // adds it to Knot when this jar exists.
-            format!("-Dferro.apiJar={}", lib_dir.join("ferrofabric-api.jar").display()),
+            format!(
+                "-Dferro.apiJar={}",
+                lib_dir.join("ferrofabric-api.jar").display()
+            ),
         ],
     };
     match Jvm::start(&config) {
@@ -146,6 +155,7 @@ pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
                 Ok(report) => {
                     let pending = PendingRegistrations::parse(&report);
                     for key in &pending.keys {
+                        log_line(&key.describe());
                         registrar.register_key_mapping(KeyRegistration::new(
                             &format!("{}_{}", key.mod_id, key.key_id),
                             &key.default_key,
@@ -194,7 +204,13 @@ pub fn compute_fov_modifier(event: &mut mod_api::ComputeFovModifierEvent<'_>) {
         &[Arg::Float(event.base), Arg::Float(0.0), Arg::Int(0)],
     );
     match outcome {
-        Ok(value) if value.is_finite() && value > 0.0 => event.modifier = value,
+        Ok(value) if value.is_finite() && value > 0.0 => {
+            event.modifier = value;
+            let bits = value.to_bits();
+            if LAST_FOV.swap(bits, Ordering::Relaxed) != bits {
+                log_line(&fov_line(event.base, value));
+            }
+        }
         Ok(_) => {}
         Err(error) => {
             if !FOV_ERROR_LOGGED.swap(true, Ordering::Relaxed) {

@@ -17,6 +17,16 @@ pub struct KeyRequest {
     pub default_key: String,
 }
 
+impl KeyRequest {
+    /// One line for `ferroloom.log`, so the key a mod registered is visible without Controls.
+    pub fn describe(&self) -> String {
+        format!(
+            "key: {}/{} -> {}",
+            self.mod_id, self.key_id, self.default_key
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CommandRequest {
     pub mod_id: String,

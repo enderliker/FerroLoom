@@ -33,3 +33,14 @@ fn classpath_lists_every_jar_sorted() {
         vec![tmp.path().join("a.jar"), tmp.path().join("b.jar")]
     );
 }
+
+#[test]
+fn a_dotted_key_id_is_parsed_and_described() {
+    let report = PendingRegistrations::parse("KEY\tzoomx\tzoom\tkey.keyboard.v\n");
+    assert_eq!(report.keys[0].mod_id, "zoomx");
+    assert_eq!(report.keys[0].key_id, "zoom");
+    assert_eq!(
+        report.keys[0].describe(),
+        "key: zoomx/zoom -> key.keyboard.v"
+    );
+}
