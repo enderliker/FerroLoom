@@ -73,7 +73,7 @@ public final class FerroBootstrap {
                 .init(new String[] {"--gameDir", gameDir().toString()});
         gameLoader = loader;
         FabricLoaderImpl.INSTANCE.invokeEntrypoints("main", ModInitializer.class, ModInitializer::onInitialize);
-        return "";
+        return dev.ferroloom.api.FerroRegistrations.report();
     }
 
     public static void onTick(long tickNumber, double x, double y, double z) {
@@ -85,6 +85,20 @@ public final class FerroBootstrap {
         Object value = invoke(gameMethod("computeFovModifier", float.class, float.class, boolean.class),
                 base, tickDelta, changingFov);
         return value instanceof Float f ? f : base;
+    }
+
+    public static void onKey(String modId, String keyId, boolean down) {
+        invoke(gameMethod("onKey", String.class, String.class, boolean.class), modId, keyId, down);
+    }
+
+    public static boolean onCommand(String command) {
+        Object handled = invoke(gameMethod("onCommand", String.class), command);
+        return handled instanceof Boolean value && value;
+    }
+
+    public static String hudLine() {
+        Object line = invoke(gameMethod("hudLine"), new Object[0]);
+        return line instanceof String text ? text : "";
     }
 
     public static void onClientSetup() {

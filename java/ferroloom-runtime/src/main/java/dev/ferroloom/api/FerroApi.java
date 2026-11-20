@@ -17,6 +17,18 @@ public final class FerroApi {
         }
     }
 
+    public static void registerKey(String modId, String keyId, String defaultKey) {
+        FerroRegistrations.key(modId, keyId, defaultKey);
+    }
+
+    public static void registerCommand(String modId, String name) {
+        FerroRegistrations.command(modId, name);
+    }
+
+    public static void setHudLine(String modId, String line) {
+        FerroRegistrations.setHudLine(line);
+    }
+
     public static void sendChat(String message) {
         try {
             FerroNative.callString(OP_CHAT, message);

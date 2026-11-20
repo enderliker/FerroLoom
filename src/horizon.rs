@@ -16,6 +16,7 @@ static JVM: OnceLock<Jvm> = OnceLock::new();
 static TICKS: AtomicU64 = AtomicU64::new(0);
 static REGISTRATIONS: OnceLock<PendingRegistrations> = OnceLock::new();
 static FOV_ERROR_LOGGED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static KEY_STATE: std::sync::Mutex<Vec<bool>> = std::sync::Mutex::new(Vec::new());
 
 /// The mod's own log, beside the game's files (`<instance home>/ferroloom.log`).
 fn log_line(message: &str) {
@@ -206,10 +207,90 @@ pub fn client_setup() {
     }
 }
 
+pub fn command(command: &str) -> bool {
+    let Some(jvm) = JVM.get() else {
+        return false;
+    };
+    match jvm.call_static_bool(
+        "dev/ferroloom/loader/FerroBootstrap",
+        "onCommand",
+        "(Ljava/lang/String;)Z",
+        &[Arg::Text(command.to_string())],
+    ) {
+        Ok(handled) => handled,
+        Err(error) => {
+            log_line(&format!("command dispatch failed: {error}"));
+            false
+        }
+    }
+}
+
+pub fn register_gui_layers(event: &mut mod_api::RegisterGuiLayersEvent<'_>) {
+    if let Some(registrations) = REGISTRATIONS.get() {
+        if registrations.hud {
+            event.layers.push(mod_api::GuiLayer {
+                id: "ferroloom:hud".to_string(),
+                placement: mod_api::GuiLayerPlacement::AboveAll,
+            });
+            log_line("hud layer registered");
+        }
+    }
+}
+
+pub fn gui_layer_draw(event: &mut mod_api::GuiLayerDrawEvent<'_>) {
+    if event.layer != "ferroloom:hud" {
+        return;
+    }
+    let Some(jvm) = JVM.get() else {
+        return;
+    };
+    match jvm.call_static_string(
+        "dev/ferroloom/loader/FerroBootstrap",
+        "hudLine",
+        "()Ljava/lang/String;",
+        &[],
+    ) {
+        Ok(line) if !line.is_empty() => event.draw.text(&line, [4.0, 4.0], 0xFFFF_FFFF, true),
+        Ok(_) => {}
+        Err(error) => log_line(&format!("hud read failed: {error}")),
+    }
+}
+
+fn dispatch_keys(jvm: &Jvm, host: &mut dyn ClientHost) {
+    let Some(registrations) = REGISTRATIONS.get() else {
+        return;
+    };
+    if registrations.keys.is_empty() {
+        return;
+    }
+    let mut states = KEY_STATE.lock().unwrap();
+    states.resize(registrations.keys.len(), false);
+    for (index, key) in registrations.keys.iter().enumerate() {
+        let mapping = format!("{}:{}", key.mod_id, key.key_id);
+        let down = host.is_down("ferroloom", &mapping);
+        if down != states[index] {
+            states[index] = down;
+            if let Err(error) = jvm.call_static_void(
+                "dev/ferroloom/loader/FerroBootstrap",
+                "onKey",
+                "(Ljava/lang/String;Ljava/lang/String;Z)V",
+                &[
+                    Arg::Text(key.mod_id.clone()),
+                    Arg::Text(key.key_id.clone()),
+                    Arg::Int(i32::from(down)),
+                ],
+            ) {
+                log_line(&format!("key dispatch failed: {error}"));
+            }
+        }
+    }
+}
+
 pub fn client_tick(host: &mut dyn ClientHost) {
     let Some(jvm) = JVM.get() else {
         return;
     };
+    dispatch_keys(jvm, host);
     let tick = TICKS.fetch_add(1, Ordering::Relaxed);
     if tick < 3 || tick % 200 == 0 {
         log_line(&format!("client_tick_pre {tick}"));

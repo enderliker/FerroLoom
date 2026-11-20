@@ -13,7 +13,11 @@ pub mod settings;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests;
 
-use mod_api::{ClientHost, ClientSetupEvent, ClientTickPreEvent, ComputeFovModifierEvent, Hooks, RegistrationContext, Registrar};
+use mod_api::runtime::Flow;
+use mod_api::{
+    ClientHost, ClientSetupEvent, ClientTickPreEvent, CommandEvent, ComputeFovModifierEvent,
+    GuiLayerDrawEvent, Hooks, RegisterGuiLayersEvent, RegistrationContext, Registrar,
+};
 
 #[derive(Default)]
 struct Mod;
@@ -35,6 +39,30 @@ impl Hooks for Mod {
     fn compute_fov_modifier(&self, _host: &dyn ClientHost, event: &mut ComputeFovModifierEvent<'_>) {
         #[cfg(not(target_arch = "wasm32"))]
         horizon::compute_fov_modifier(event);
+    }
+
+    fn command(&self, _host: &mut dyn ClientHost, event: &mut CommandEvent<'_>) -> Flow {
+        #[cfg(not(target_arch = "wasm32"))]
+        if horizon::command(event.command) {
+            return Flow::Cancel;
+        }
+        #[cfg(target_arch = "wasm32")]
+        let _ = event;
+        Flow::Continue
+    }
+
+    fn register_gui_layers(&self, _context: &RegistrationContext, event: &mut RegisterGuiLayersEvent<'_>) {
+        #[cfg(not(target_arch = "wasm32"))]
+        horizon::register_gui_layers(event);
+        #[cfg(target_arch = "wasm32")]
+        let _ = event;
+    }
+
+    fn gui_layer_draw(&self, _host: &dyn ClientHost, event: &mut GuiLayerDrawEvent<'_>) {
+        #[cfg(not(target_arch = "wasm32"))]
+        horizon::gui_layer_draw(event);
+        #[cfg(target_arch = "wasm32")]
+        let _ = event;
     }
 
     fn client_tick_pre(&self, host: &mut dyn ClientHost, _event: &mut ClientTickPreEvent) {

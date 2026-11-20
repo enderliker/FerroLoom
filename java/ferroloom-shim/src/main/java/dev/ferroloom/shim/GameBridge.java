@@ -2,6 +2,7 @@ package dev.ferroloom.shim;
 
 import dev.ferroloom.api.FerroApi;
 import dev.ferroloom.api.FerroEvents;
+import dev.ferroloom.api.FerroRegistrations;
 import java.util.ArrayList;
 import java.util.List;
 import net.fabricmc.api.ClientModInitializer;
@@ -43,6 +44,40 @@ public final class GameBridge {
         Camera camera = ShimRuntime.camera();
         camera.tickFov();
         return camera.getFov();
+    }
+
+    public static void onKey(String modId, String keyId, boolean down) {
+        for (FerroEvents.KeyListener listener : List.copyOf(FerroEvents.KEYS)) {
+            try {
+                listener.onKey(modId, keyId, down);
+            } catch (Throwable failure) {
+                FAILED.add("key: " + failure);
+                FerroApi.log("listener failed: " + failure);
+                FerroEvents.KEYS.remove(listener);
+            }
+        }
+    }
+
+    public static boolean onCommand(String command) {
+        String trimmed = command.trim();
+        if (trimmed.isEmpty()) return false;
+        int space = trimmed.indexOf(' ');
+        String name = space < 0 ? trimmed : trimmed.substring(0, space);
+        String[] args = space < 0 ? new String[0] : trimmed.substring(space + 1).trim().split("\\s+");
+        for (FerroEvents.CommandListener listener : List.copyOf(FerroEvents.COMMANDS)) {
+            try {
+                if (listener.onCommand(name, name, args)) return true;
+            } catch (Throwable failure) {
+                FAILED.add("command: " + failure);
+                FerroApi.log("listener failed: " + failure);
+                FerroEvents.COMMANDS.remove(listener);
+            }
+        }
+        return false;
+    }
+
+    public static String hudLine() {
+        return FerroRegistrations.hudLine();
     }
 
     public static void onClientSetup() {

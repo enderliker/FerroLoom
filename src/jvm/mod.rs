@@ -85,22 +85,33 @@ impl std::fmt::Display for JvmError {
 impl std::error::Error for JvmError {}
 
 /// One argument to a static Java call.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 pub enum Arg {
     Int(i32),
     Long(i64),
     Float(f32),
     Double(f64),
+    Text(String),
 }
 
 impl Arg {
-    fn as_jvalue(self) -> jvalue {
-        match self {
-            Arg::Int(value) => jvalue { i: value },
-            Arg::Long(value) => jvalue { j: value },
-            Arg::Float(value) => jvalue { f: value },
-            Arg::Double(value) => jvalue { d: value },
-        }
+    fn as_jvalue(&self, env: *mut JNIEnv) -> Result<jvalue, JvmError> {
+        Ok(match self {
+            Arg::Int(value) => jvalue { i: *value },
+            Arg::Long(value) => jvalue { j: *value },
+            Arg::Float(value) => jvalue { f: *value },
+            Arg::Double(value) => jvalue { d: *value },
+            Arg::Text(text) => {
+                let text = CString::new(text.as_str()).map_err(|_| JvmError::Jni {
+                    reason: "argument contains NUL".to_string(),
+                })?;
+                let new_string = unsafe { (**env).NewStringUTF }.ok_or_else(|| JvmError::Jni {
+                    reason: "NewStringUTF is missing".to_string(),
+                })?;
+                let string = unsafe { new_string(env, text.as_ptr()) };
+                jvalue { l: string as jobject }
+            }
+        })
     }
 }
 
@@ -125,6 +136,13 @@ enum Task {
         signature: String,
         args: Vec<Arg>,
         reply: Sender<Result<String, JvmError>>,
+    },
+    Bool {
+        class: String,
+        method: String,
+        signature: String,
+        args: Vec<Arg>,
+        reply: Sender<Result<bool, JvmError>>,
     },
     Float {
         class: String,
@@ -228,6 +246,26 @@ impl Jvm {
     ) -> Result<(), JvmError> {
         let (reply, response) = mpsc::channel();
         self.request(Task::Void {
+            class: class.to_string(),
+            method: method.to_string(),
+            signature: signature.to_string(),
+            args: args.to_vec(),
+            reply,
+        })?;
+        response.recv().map_err(|_| JvmError::Jni {
+            reason: "the JVM thread dropped the call".to_string(),
+        })?
+    }
+
+    pub fn call_static_bool(
+        &self,
+        class: &str,
+        method: &str,
+        signature: &str,
+        args: &[Arg],
+    ) -> Result<bool, JvmError> {
+        let (reply, response) = mpsc::channel();
+        self.request(Task::Bool {
             class: class.to_string(),
             method: method.to_string(),
             signature: signature.to_string(),
@@ -403,6 +441,15 @@ fn execute(env: *mut JNIEnv, task: Task) {
         } => {
             let _ = reply.send(unsafe { call_string_env(env, &class, &method, &signature, &args) });
         }
+        Task::Bool {
+            class,
+            method,
+            signature,
+            args,
+            reply,
+        } => {
+            let _ = reply.send(unsafe { call_bool_env(env, &class, &method, &signature, &args) });
+        }
         Task::Float {
             class,
             method,
@@ -435,7 +482,10 @@ unsafe fn call_long_env(
 ) -> Result<i64, JvmError> {
     let class = unsafe { find_class(env, class)? };
     let method = unsafe { static_method(env, class, method, signature)? };
-    let args: Vec<jvalue> = args.iter().copied().map(Arg::as_jvalue).collect();
+    let args: Vec<jvalue> = args
+        .iter()
+        .map(|arg| arg.as_jvalue(env))
+        .collect::<Result<_, _>>()?;
     let call = unsafe { (**env).CallStaticLongMethodA }.ok_or_else(|| JvmError::Jni {
         reason: "CallStaticLongMethodA is missing".to_string(),
     })?;
@@ -457,7 +507,10 @@ unsafe fn call_void_env(
 ) -> Result<(), JvmError> {
     let class = unsafe { find_class(env, class)? };
     let method = unsafe { static_method(env, class, method, signature)? };
-    let args: Vec<jvalue> = args.iter().copied().map(Arg::as_jvalue).collect();
+    let args: Vec<jvalue> = args
+        .iter()
+        .map(|arg| arg.as_jvalue(env))
+        .collect::<Result<_, _>>()?;
     let call = unsafe { (**env).CallStaticVoidMethodA }.ok_or_else(|| JvmError::Jni {
         reason: "CallStaticVoidMethodA is missing".to_string(),
     })?;
@@ -470,6 +523,31 @@ unsafe fn call_void_env(
     }
 }
 
+unsafe fn call_bool_env(
+    env: *mut JNIEnv,
+    class: &str,
+    method: &str,
+    signature: &str,
+    args: &[Arg],
+) -> Result<bool, JvmError> {
+    let class = unsafe { find_class(env, class)? };
+    let method = unsafe { static_method(env, class, method, signature)? };
+    let args: Vec<jvalue> = args
+        .iter()
+        .map(|arg| arg.as_jvalue(env))
+        .collect::<Result<_, _>>()?;
+    let call = unsafe { (**env).CallStaticBooleanMethodA }.ok_or_else(|| JvmError::Jni {
+        reason: "CallStaticBooleanMethodA is missing".to_string(),
+    })?;
+    let value = unsafe { call(env, class, method, args.as_ptr()) };
+    let exception = unsafe { take_exception(env) };
+    unsafe { delete(env, class as jobject) };
+    match exception {
+        Some(error) => Err(error),
+        None => Ok(value != 0),
+    }
+}
+
 unsafe fn call_float_env(
     env: *mut JNIEnv,
     class: &str,
@@ -479,7 +557,10 @@ unsafe fn call_float_env(
 ) -> Result<f32, JvmError> {
     let class = unsafe { find_class(env, class)? };
     let method = unsafe { static_method(env, class, method, signature)? };
-    let args: Vec<jvalue> = args.iter().copied().map(Arg::as_jvalue).collect();
+    let args: Vec<jvalue> = args
+        .iter()
+        .map(|arg| arg.as_jvalue(env))
+        .collect::<Result<_, _>>()?;
     let call = unsafe { (**env).CallStaticFloatMethodA }.ok_or_else(|| JvmError::Jni {
         reason: "CallStaticFloatMethodA is missing".to_string(),
     })?;
@@ -501,7 +582,10 @@ unsafe fn call_string_env(
 ) -> Result<String, JvmError> {
     let class = unsafe { find_class(env, class)? };
     let method = unsafe { static_method(env, class, method, signature)? };
-    let args: Vec<jvalue> = args.iter().copied().map(Arg::as_jvalue).collect();
+    let args: Vec<jvalue> = args
+        .iter()
+        .map(|arg| arg.as_jvalue(env))
+        .collect::<Result<_, _>>()?;
     let call = unsafe { (**env).CallStaticObjectMethodA }.ok_or_else(|| JvmError::Jni {
         reason: "CallStaticObjectMethodA is missing".to_string(),
     })?;
