@@ -1,0 +1,26 @@
+name: Feature request
+description: Propose a behavior, a hook or a compatibility improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does it solve?
+      description: The mod or workflow that cannot work today, with the concrete API or event.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+  - type: markdown
+    attributes:
+      value: |
+        Reminder: FerroLoom cannot copy Mojang code; proposals based on the official jar's
+        behavior must describe it, not paste it.

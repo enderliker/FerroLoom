@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in FerroLoom does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do not paste your Microsoft account details or a full world. A log excerpt is enough.
+  - type: input
+    id: version
+    attributes:
+      label: FerroLoom version / commit
+      placeholder: e.g. 204cb0f
+    validations:
+      required: true
+  - type: input
+    id: horizon
+    attributes:
+      label: Horizon build
+      placeholder: e.g. nightly-2026-11-19-5ef7734
+    validations:
+      required: true
+  - type: input
+    id: java
+    attributes:
+      label: JDK
+      placeholder: e.g. Temurin 25.0.1
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Stage the runtime with tools/stage.sh
+        2. Drop this jar in ferroloom-mods/
+        3. Open a world and press G
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Log excerpt
+      description: The relevant lines from ~/.local/share/horizon/ferroloom.log (and the crash report, if any).
+      render: text
+  - type: textarea
+    id: mods
+    attributes:
+      label: Mods involved
+      description: The Fabric jars in ferroloom-mods/ (name and version). Do not attach jars you cannot share.

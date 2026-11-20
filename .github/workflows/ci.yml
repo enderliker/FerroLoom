@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-format:
+    name: Rust formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --check
+
+  java:
+    name: Java tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Fetch the embedded runtime
+        run: ./tools/fetch-runtime.sh
+      - name: Run the Java suites
+        working-directory: java
+        run: ./gradlew test
+
+  # The Rust crate needs the Horizon launcher: `cargo horizon-mod check` writes the pinned SDK
+  # into .horizon/ and the launcher's toolchain builds it. Run those locally before opening a
+  # pull request; see CONTRIBUTING.md.
+  rust-build:
+    name: Rust build (needs the Horizon launcher)
+    if: false
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Run cargo horizon-mod check && cargo test locally."

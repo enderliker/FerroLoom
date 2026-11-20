@@ -1,5 +1,8 @@
 # FerroLoom
 
+[![CI](https://github.com/enderliker/FerroLoom/actions/workflows/ci.yml/badge.svg)](https://github.com/enderliker/FerroLoom/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A JVM host for Horizon (Minecraft 26.3 in Rust). Plan 2: real Fabric Loader, the shim, and a
 real Fabric mod.
 
@@ -83,8 +86,15 @@ example tick=200 pos=-31.33,70.62,0.33
 - The package's `Cargo.lock` is the game engine's plus the mod's own identities. Do not run
   `native-lock --update-lock`.
 - The instance reads native mods from `horizon-native-mods/` and the `horizon-mods.txt` switch
-  (`mod.ferroloom: true`). See `../docs/smoke.md`.
+  (`mod.ferroloom: true`). See [docs/smoke.md](docs/smoke.md).
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first. Fork the repository, add a test with your change
+and open a pull request; every commit must be signed off with the Developer Certificate of
+Origin. The design and the plans live in [docs/superpowers](docs/superpowers); the in-game check
+is in [docs/smoke.md](docs/smoke.md).
 
 ## License
 
-MIT. See `LICENSE` and `NOTICE`. No Mojang code or assets.
+MIT. See [LICENSE](LICENSE) and [NOTICE](NOTICE). No Mojang code or assets.

@@ -1,0 +1,40 @@
+name: Release Java runtime
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./tools/fetch-runtime.sh
+      - name: Build the jars
+        working-directory: java
+        run: ./gradlew :ferroloom-runtime:jar :ferroloom-loader:jar :ferroloom-shim:jar
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp java/ferroloom-runtime/build/libs/ferroloom-runtime.jar dist/
+          cp java/ferroloom-loader/build/libs/ferroloom-loader.jar dist/
+          cp java/ferroloom-shim/build/libs/ferroloom-shim.jar dist/ferro-shim.jar
+          cp java/.runtime/fabric/fabric-loader-0.20.1.jar dist/
+          cp java/.runtime/fabric/sponge-mixin.jar dist/
+          cp java/.runtime/fabric/mixinextras.jar dist/
+          cp java/.runtime/fabric/asm*.jar dist/
+          cp LICENSE NOTICE README.md dist/
+          sha256sum dist/* > dist/SHA256SUMS
+          (cd dist && zip -r ../ferroloom-java.zip .)
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ferroloom-java.zip

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Design and plans
+    url: https://github.com/enderliker/FerroLoom/tree/master/docs
+    about: Read the design spec and the plans before proposing a large change.
