@@ -6,6 +6,7 @@ pub struct PendingRegistrations {
     pub keys: Vec<KeyRequest>,
     pub commands: Vec<CommandRequest>,
     pub hud: bool,
+    pub logs: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -50,6 +51,11 @@ impl PendingRegistrations {
                     });
                 }
                 Some("HUD") => pending.hud = true,
+                Some("LOG") => {
+                    if let Some(message) = fields.next() {
+                        pending.logs.push(message.to_string());
+                    }
+                }
                 _ => {}
             }
         }

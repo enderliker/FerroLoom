@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "ferroloom-example",
+  "version": "1.0.0",
+  "name": "FerroLoom Example",
+  "description": "A trivial Fabric mod that proves FerroLoom loads, ticks and talks to it.",
+  "environment": "client",
+  "entrypoints": {
+    "main": ["dev.ferroloom.example.ExampleMod"],
+    "client": ["dev.ferroloom.example.ExampleMod"]
+  },
+  "depends": {
+    "minecraft": ">=26.3",
+    "java": ">=25"
+  }
+}

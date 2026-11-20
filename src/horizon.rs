@@ -8,7 +8,7 @@ use mod_api::{ClientHost, KeyRegistration, RegistrationContext, Registrar};
 use crate::bridge::registrations::{self, PendingRegistrations};
 use crate::bridge::upcall::{on_client_tick, TickHost};
 use crate::bridge::window::EngineWindow;
-use crate::bridge::writes::WriteQueue;
+use crate::bridge::writes::{with_queue, WriteOp, WriteQueue, WriteSink};
 use crate::jvm::{locate, Arg, Jvm, JvmConfig, LocateSources};
 use crate::settings::Settings;
 
@@ -141,9 +141,12 @@ pub fn register(context: &RegistrationContext, registrar: &mut dyn Registrar) {
                     let pending = PendingRegistrations::parse(&report);
                     for key in &pending.keys {
                         registrar.register_key_mapping(KeyRegistration::new(
-                            &format!("{}:{}", key.mod_id, key.key_id),
+                            &format!("{}_{}", key.mod_id, key.key_id),
                             &key.default_key,
                         ));
+                    }
+                    for message in &pending.logs {
+                        log_line(message);
                     }
                     log_line(&format!(
                         "JVM ready; loader started; {} key(s), {} command(s), hud={}",
@@ -192,35 +195,79 @@ pub fn compute_fov_modifier(event: &mut mod_api::ComputeFovModifierEvent<'_>) {
     }
 }
 
-pub fn client_setup() {
+pub fn client_setup(host: &mut dyn ClientHost) {
     let Some(jvm) = JVM.get() else {
         return;
     };
-    match jvm.call_static_void(
-        "dev/ferroloom/loader/FerroBootstrap",
-        "onClientSetup",
-        "()V",
-        &[],
-    ) {
+    let mut writes = WriteQueue::new();
+    let outcome = with_queue(&mut writes, || {
+        jvm.call_static_void(
+            "dev/ferroloom/loader/FerroBootstrap",
+            "onClientSetup",
+            "()V",
+            &[],
+        )
+    });
+    let mut sink = HostSink { host };
+    let _ = writes.drain(&mut sink);
+    match outcome {
         Ok(()) => log_line("client setup: client entrypoints ran"),
         Err(error) => log_line(&format!("client setup failed: {error}")),
     }
 }
 
-pub fn command(command: &str) -> bool {
+fn send_key(jvm: &Jvm, key: &crate::bridge::registrations::KeyRequest, down: bool) {
+    if let Err(error) = jvm.call_static_void(
+        "dev/ferroloom/loader/FerroBootstrap",
+        "onKey",
+        "(Ljava/lang/String;Ljava/lang/String;Z)V",
+        &[
+            Arg::Text(key.mod_id.clone()),
+            Arg::Text(key.key_id.clone()),
+            Arg::Int(i32::from(down)),
+        ],
+    ) {
+        log_line(&format!("key dispatch failed: {error}"));
+    }
+}
+
+pub fn command(host: &mut dyn ClientHost, command: &str) -> bool {
     let Some(jvm) = JVM.get() else {
         return false;
     };
-    match jvm.call_static_bool(
-        "dev/ferroloom/loader/FerroBootstrap",
-        "onCommand",
-        "(Ljava/lang/String;)Z",
-        &[Arg::Text(command.to_string())],
-    ) {
+    let mut writes = WriteQueue::new();
+    let handled = with_queue(&mut writes, || {
+        jvm.call_static_bool(
+            "dev/ferroloom/loader/FerroBootstrap",
+            "onCommand",
+            "(Ljava/lang/String;)Z",
+            &[Arg::Text(command.to_string())],
+        )
+    });
+    let mut sink = HostSink { host };
+    let _ = writes.drain(&mut sink);
+    match handled {
         Ok(handled) => handled,
         Err(error) => {
             log_line(&format!("command dispatch failed: {error}"));
             false
+        }
+    }
+}
+
+/// Applies what a mod asked for from a hook that has no tick queue of its own.
+pub struct HostSink<'a> {
+    pub host: &'a mut dyn ClientHost,
+}
+
+impl WriteSink for HostSink<'_> {
+    fn apply(&mut self, op: WriteOp) -> Result<(), String> {
+        match op {
+            WriteOp::Log(text) => {
+                log_line(&text);
+                Ok(())
+            }
+            WriteOp::Chat(text) => self.host.send_chat(&text),
         }
     }
 }
@@ -266,23 +313,22 @@ fn dispatch_keys(jvm: &Jvm, host: &mut dyn ClientHost) {
     let mut states = KEY_STATE.lock().unwrap();
     states.resize(registrations.keys.len(), false);
     for (index, key) in registrations.keys.iter().enumerate() {
-        let mapping = format!("{}:{}", key.mod_id, key.key_id);
+        let mapping = format!("{}_{}", key.mod_id, key.key_id);
+        let was = states[index];
         let down = host.is_down("ferroloom", &mapping);
-        if down != states[index] {
-            states[index] = down;
-            if let Err(error) = jvm.call_static_void(
-                "dev/ferroloom/loader/FerroBootstrap",
-                "onKey",
-                "(Ljava/lang/String;Ljava/lang/String;Z)V",
-                &[
-                    Arg::Text(key.mod_id.clone()),
-                    Arg::Text(key.key_id.clone()),
-                    Arg::Int(i32::from(down)),
-                ],
-            ) {
-                log_line(&format!("key dispatch failed: {error}"));
+        let clicked = host.consume_click("ferroloom", &mapping);
+        if clicked && !down {
+            send_key(jvm, key, true);
+            send_key(jvm, key, false);
+        } else {
+            if down && !was {
+                send_key(jvm, key, true);
+            }
+            if !down && was {
+                send_key(jvm, key, false);
             }
         }
+        states[index] = down;
     }
 }
 
@@ -290,7 +336,6 @@ pub fn client_tick(host: &mut dyn ClientHost) {
     let Some(jvm) = JVM.get() else {
         return;
     };
-    dispatch_keys(jvm, host);
     let tick = TICKS.fetch_add(1, Ordering::Relaxed);
     if tick < 3 || tick % 200 == 0 {
         log_line(&format!("client_tick_pre {tick}"));
@@ -298,6 +343,8 @@ pub fn client_tick(host: &mut dyn ClientHost) {
     // Reads stay on this thread: the engine checks the load phase per thread.
     let position = host.camera().map(|camera| camera.position);
     let mut writes = WriteQueue::new();
+    // Key dispatch runs inside the write window so a listener's chat reaches the queue.
+    with_queue(&mut writes, || dispatch_keys(jvm, host));
     let mut window = ClientWindow { host };
     match on_client_tick(
         jvm,

@@ -1,78 +1,90 @@
 # FerroLoom
 
-Host de JVM para Horizon (Minecraft 26.3 en Rust). Plan 1: esqueleto caminante del puente.
+A JVM host for Horizon (Minecraft 26.3 in Rust). Plan 2: real Fabric Loader, the shim, and a
+real Fabric mod.
 
-FerroLoom se instala como un mod nativo `.hmod`. Al registrarse localiza Java, crea una JVM
-embebida y, en cada `client_tick_pre`, llama a Java y aplica las escrituras que Java encoló.
-Todavía **no** carga mods de Fabric: eso es el Plan 2.
+FerroLoom ships as a native `.hmod`. At registration it finds Java, creates an embedded JVM,
+starts **the real Fabric Loader** through a `GameProvider` of its own (`horizon`) that never
+launches a game, and dispatches the engine's hooks to Fabric mods loaded from its mods folder.
 
-## Qué funciona
+## What works
 
-- Descubrimiento de JDK: raíces del runtime de Minecraft → `JAVA_HOME`, con rechazo de
-  versiones anteriores a 21.
-- Carga de `libjvm` con errores tipados y una sola JVM por proceso.
-- Puente JNI con `RegisterNatives`; un pánico de Rust cruza como `RuntimeException`.
-- Arena de handles generacional, ventana de lectura por callback y cola de escrituras.
-- Round-trip completo de un tick: Java lee la posición, encola un log y Rust lo aplica.
-- 24 tests de Rust y 3 de Java.
+- JDK discovery, `libjvm` loading, one JVM per process, and all JNI on the bridge thread
+  (HotSpot refuses to attach the game's threads).
+- Fabric Loader 0.20.1 embedded; it discovers the jars in `ferroloom-mods/`, verifies they use
+  the 26.3 names, and runs their `main` entrypoints at registration and `client` entrypoints at
+  `client_setup`.
+- A `net.minecraft.*` shim generated with ASM from the official 26.3 jar's metadata (11,383
+  classes, 77,780 methods; bodies are FerroLoom's own or throw `FerroUnimplementedException`).
+- A mod's Mixin transforms a shim class: `Camera.getFov` through the `compute_fov_modifier` call
+  site.
+- Ticks, keys, client commands and a HUD layer reach a Fabric mod; the chat and log writes it
+  makes are applied at the end of the hook.
+- 26 Rust tests and 14 Java tests (runtime, loader, generator and shim).
 
-## Qué no hace todavía
+## What it does not do yet
 
-- Fabric Loader, remapeo de mods y el shim de `net.minecraft.*` (Plan 2).
-- El mod de ejemplo y Zoom (Plan 3).
-- FerroFabric-API (Plan 4).
-- Servidor dedicado y hooks de worker (v0.2).
-- Empaquetado y registro (Plan 5).
+- FerroFabric-API (Plan 4): mods use the `dev.ferroloom.api` development API for ticks, keys,
+  commands and the HUD; `net.minecraft.*` members outside the implemented shim throw.
+- Zoom (Plan 3).
+- Dedicated servers and worker hooks (v0.2).
+- Packaging and the registry (Plan 5).
 
-## Construir y probar
+## Build and test
 
 ```sh
+# once: Fabric Loader, its libraries and the official 26.3 jar into java/.runtime
+./tools/fetch-runtime.sh
+
 cargo test
 cargo horizon-mod check
-cd java && ./gradlew :ferroloom-runtime:test
-cargo horizon-mod build          # deja target/horizon-mod/ferroloom.hmod
+(cd java && ./gradlew test)
 ```
 
-## Ajustes
+## Staging and the in-game check
 
-| Variable | Para qué | Defecto |
+```sh
+./tools/stage.sh                      # jars into ~/.local/share/horizon/ferroloom-lib, example into ferroloom-mods
+horizon-launcher native-build . --instance Horizon --trust-native-code
+# then open a world; the Horizon MCP does the same with play
+```
+
+Evidence in `~/.local/share/horizon/ferroloom.log`:
+
+```
+example: main entrypoint
+JVM ready; loader started; 1 key(s), 1 command(s), hud=true
+hud layer registered
+client setup: client entrypoints ran
+example tick=200 pos=-31.33,70.62,0.33
+```
+
+`/ferro-hola` and the G key answer in chat, and the HUD line shows on screen.
+
+## Settings
+
+| Variable | Purpose | Default |
 |---|---|---|
-| `FERROLOOM_LIB_DIR` | Carpeta con `ferroloom-runtime.jar` | (obligatoria) |
-| `FERROLOOM_JAVA_HOME` | JDK explícito | — |
-| `FERROLOOM_MC_RUNTIME` | Raíces del runtime de Minecraft, separadas por `:` | `~/.minecraft/runtime` |
-| `FERROLOOM_XMX_MIB` | Heap de la JVM, 256..8192 | 1024 |
-| `JAVA_HOME` | JDK de respaldo | — |
+| `FERROLOOM_LIB_DIR` | Folder with every runtime jar | `~/.local/share/horizon/ferroloom-lib` |
+| `FERROLOOM_MODS_DIR` | Fabric mods folder | `~/.local/share/horizon/ferroloom-mods` |
+| `FERROLOOM_CACHE_DIR` | Cache of verified jars | `~/.local/share/horizon/ferroloom-cache` |
+| `FERROLOOM_JAVA_HOME` | Explicit JDK | — |
+| `FERROLOOM_MC_RUNTIME` | Minecraft runtime roots, `:`-separated | `~/.minecraft/runtime` |
+| `FERROLOOM_XMX_MIB` | JVM heap, 256..8192 | 1024 |
+| `JAVA_HOME` | Fallback JDK | — |
 
-## Probar en el juego
+## State and notes
 
-Ver `../docs/smoke.md` y `../tools/smoke.sh`. El proceso del juego debe heredar
-`FERROLOOM_LIB_DIR` y `JAVA_HOME`; con el launcher, fíjalos con
-`horizon-launcher instance launch <instancia> --env "NAME=value ..."`.
+- All JNI runs on the thread that created the JVM; the engine reads on the game thread and
+  pushes the position before each tick.
+- The shim is generated by the Java build (`:ferroloom-shim:generateShim`) from
+  `java/.runtime/minecraft/client.jar`; it is not versioned and contains no Mojang code: only
+  names, hierarchy and descriptors.
+- The package's `Cargo.lock` is the game engine's plus the mod's own identities. Do not run
+  `native-lock --update-lock`.
+- The instance reads native mods from `horizon-native-mods/` and the `horizon-mods.txt` switch
+  (`mod.ferroloom: true`). See `../docs/smoke.md`.
 
-## Estado: funciona en el juego
+## License
 
-Con el mundo abierto, `~/.local/share/horizon/ferroloom.log` repite:
-
-```
-pos=-31.5,70.61999988555908,0.5 tick=1451
-tick 1451: 1 writes applied
-```
-
-Arquitectura final del puente:
-
-- La JVM se crea en un hilo dedicado (`ferroloom-jvm`) y **todo el JNI corre en ese hilo**:
-  HotSpot rechaza adjuntar los hilos del juego (`AttachCurrentThread` devuelve -1).
-- El motor comprueba la fase de carga **por hilo**, así que las lecturas (`camera()`) se hacen
-  en el hilo del juego y se empujan a Java (`FerroRuntime.setPosition`) antes de cada tick.
-- La cola de escrituras cruza al hilo de la JVM; el hilo del juego la drena al volver.
-
-El `Cargo.lock` del paquete es el del motor del juego (sus pines exactos) más `glob` y las
-identidades propias del mod. No ejecutes `native-lock --update-lock`: re-resuelve y el launcher
-rechaza el grafo.
-
-La carpeta de la instancia lee los mods nativos de `horizon-native-mods/` y el interruptor de
-`horizon-mods.txt` (`mod.ferroloom: true`). Ver `../docs/smoke.md`.
-
-## Licencia
-
-Apache-2.0. Ver `NOTICE`. Sin código ni assets de Mojang.
+MIT. See `LICENSE` and `NOTICE`. No Mojang code or assets.

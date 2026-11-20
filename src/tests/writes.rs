@@ -44,10 +44,10 @@ fn one_failure_does_not_stop_the_rest() {
 #[test]
 fn chat_and_log_keep_their_order() {
     let mut queue = WriteQueue::new();
-    queue.enqueue(WriteOp::Chat("hola".into()));
+    queue.enqueue(WriteOp::Chat("hello".into()));
     queue.enqueue(WriteOp::Log("pos=1".into()));
     let mut sink = Sink(vec![], false);
     let report = queue.drain(&mut sink);
     assert_eq!(report.applied, 2);
-    assert_eq!(sink.0, vec!["hola", "pos=1"]);
+    assert_eq!(sink.0, vec!["hello", "pos=1"]);
 }

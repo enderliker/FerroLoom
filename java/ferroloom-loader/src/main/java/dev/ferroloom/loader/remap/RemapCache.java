@@ -41,6 +41,13 @@ public final class RemapCache {
         } catch (IOException e) {
             throw new UncheckedIOException(e);
         }
+        // Drop jars cached for mods no longer in the folder: the loader reads the whole cache.
+        try (var files = Files.list(cacheDir)) {
+            for (Path stale : files.filter(p -> p.getFileName().toString().endsWith("-named.jar"))
+                    .filter(p -> !cached.contains(p)).toList()) {
+                Files.deleteIfExists(stale);
+            }
+        }
         return cached;
     }
 

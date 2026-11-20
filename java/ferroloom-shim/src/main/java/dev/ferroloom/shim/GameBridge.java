@@ -60,6 +60,7 @@ public final class GameBridge {
 
     public static boolean onCommand(String command) {
         String trimmed = command.trim();
+        if (trimmed.startsWith("/")) trimmed = trimmed.substring(1);
         if (trimmed.isEmpty()) return false;
         int space = trimmed.indexOf(' ');
         String name = space < 0 ? trimmed : trimmed.substring(0, space);
@@ -81,8 +82,12 @@ public final class GameBridge {
     }
 
     public static void onClientSetup() {
-        FabricLoaderImpl.INSTANCE.invokeEntrypoints("client", ClientModInitializer.class,
-                ClientModInitializer::onInitializeClient);
+        try {
+            FabricLoaderImpl.INSTANCE.invokeEntrypoints("client", ClientModInitializer.class,
+                    ClientModInitializer::onInitializeClient);
+        } catch (Throwable failure) {
+            throw new IllegalStateException(dev.ferroloom.api.Errors.describe(failure), failure);
+        }
     }
 
     public static List<String> failedListeners() {

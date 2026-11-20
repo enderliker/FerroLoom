@@ -12,6 +12,7 @@ public final class FerroRegistrations {
     private static final List<Command> COMMANDS = new ArrayList<>();
     private static volatile boolean hud;
     private static volatile String hudLine = "";
+    private static final List<String> LOGS = new ArrayList<>();
 
     private FerroRegistrations() {}
 
@@ -21,6 +22,11 @@ public final class FerroRegistrations {
 
     public static synchronized void command(String modId, String name) {
         COMMANDS.add(new Command(modId, name));
+    }
+
+    /** A line logged before the loader returned; Rust prints it with the report. */
+    public static synchronized void log(String line) {
+        if (LOGS.size() < 200) LOGS.add(line.replace('\n', ' ').replace('\r', ' '));
     }
 
     public static void setHudLine(String line) {
@@ -42,12 +48,14 @@ public final class FerroRegistrations {
             out.append("CMD\t").append(command.modId()).append('\t').append(command.name()).append('\n');
         }
         if (hud) out.append("HUD\n");
+        for (String line : LOGS) out.append("LOG\t").append(line).append('\n');
         return out.toString();
     }
 
     public static synchronized void clear() {
         KEYS.clear();
         COMMANDS.clear();
+        LOGS.clear();
         hud = false;
         hudLine = "";
     }

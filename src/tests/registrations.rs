@@ -3,8 +3,9 @@ use ferroloom::bridge::registrations::{classpath, PendingRegistrations};
 #[test]
 fn the_report_names_keys_commands_and_hud() {
     let report = PendingRegistrations::parse(
-        "KEY\texample\tkey\tkey.keyboard.g\nCMD\texample\tferro-hola\nHUD\texample\n",
+        "KEY\texample\tkey\tkey.keyboard.g\nCMD\texample\tferro-hola\nHUD\nLOG\texample: main\n",
     );
+    assert_eq!(report.logs, vec!["example: main"]);
     assert_eq!(report.keys.len(), 1);
     assert_eq!(report.keys[0].mod_id, "example");
     assert_eq!(report.keys[0].key_id, "key");

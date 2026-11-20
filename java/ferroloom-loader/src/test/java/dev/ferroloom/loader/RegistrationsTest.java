@@ -25,12 +25,14 @@ class RegistrationsTest {
         FerroApi.registerKey("example", "key", "key.keyboard.g");
         FerroApi.registerCommand("example", "ferro-hola");
         FerroApi.setHudLine("example", "hello");
+        FerroApi.log("hello from a mod");
 
         String report = FerroRegistrations.report();
 
         assertTrue(report.contains("KEY\texample\tkey\tkey.keyboard.g"), report);
         assertTrue(report.contains("CMD\texample\tferro-hola"), report);
         assertTrue(report.contains("HUD"), report);
+        assertTrue(report.contains("LOG\thello from a mod"), report);
     }
 
     @Test

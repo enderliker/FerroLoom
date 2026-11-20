@@ -10,6 +10,7 @@ public final class FerroApi {
     private FerroApi() {}
 
     public static void log(String message) {
+        FerroRegistrations.log(message);
         try {
             FerroNative.callString(OP_LOG, message);
         } catch (Throwable unavailable) {

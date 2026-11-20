@@ -45,8 +45,14 @@ public final class HorizonGameProvider implements GameProvider {
 
     @Override
     public void initialize(FabricLauncher launcher) {
-        for (Path jar : FerroBootstrap.shimJars()) launcher.addToClassPath(jar);
-        transformer.locateEntrypoints(launcher, FerroBootstrap.shimJars());
+        List<Path> shims = FerroBootstrap.shimJars();
+        // Loader, libraries and FerroLoom's own jars stay with the parent loader; only the shim is
+        // game code, so only the shim is defined (and transformed) by Knot.
+        launcher.setValidParentClassPath(launcher.getClassPath().stream()
+                .filter(path -> !containsGameClasses(path))
+                .toList());
+        for (Path jar : shims) launcher.addToClassPath(jar);
+        transformer.locateEntrypoints(launcher, shims);
     }
 
     @Override
@@ -55,6 +61,17 @@ public final class HorizonGameProvider implements GameProvider {
                 .setName("Horizon")
                 .build();
         return List.of(new BuiltinMod(FerroBootstrap.shimJars(), metadata));
+    }
+
+    /** True for a jar or directory holding the shim's net.minecraft classes. */
+    private static boolean containsGameClasses(Path path) {
+        String entry = "net/minecraft/client/Minecraft.class";
+        if (java.nio.file.Files.isDirectory(path)) return java.nio.file.Files.exists(path.resolve(entry));
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(path.toFile())) {
+            return zip.getEntry(entry) != null;
+        } catch (java.io.IOException notAJar) {
+            return false;
+        }
     }
 
     @Override

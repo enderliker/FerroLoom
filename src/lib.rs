@@ -33,7 +33,7 @@ impl Hooks for Mod {
 
     fn client_setup(&self, _host: &mut dyn ClientHost, _event: &mut ClientSetupEvent) {
         #[cfg(not(target_arch = "wasm32"))]
-        horizon::client_setup();
+        horizon::client_setup(_host);
     }
 
     fn compute_fov_modifier(&self, _host: &dyn ClientHost, event: &mut ComputeFovModifierEvent<'_>) {
@@ -43,7 +43,7 @@ impl Hooks for Mod {
 
     fn command(&self, _host: &mut dyn ClientHost, event: &mut CommandEvent<'_>) -> Flow {
         #[cfg(not(target_arch = "wasm32"))]
-        if horizon::command(event.command) {
+        if horizon::command(_host, event.command) {
             return Flow::Cancel;
         }
         #[cfg(target_arch = "wasm32")]

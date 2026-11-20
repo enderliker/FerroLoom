@@ -42,9 +42,22 @@ public final class FerroBootstrap {
         Path shims = Path.of(property("ferro.shimDir", gameDir().toString()));
         if (!Files.isDirectory(shims)) return List.of();
         try (var stream = Files.list(shims)) {
-            return stream.filter(p -> p.getFileName().toString().endsWith(".jar")).sorted().toList();
+            // Only the jar holding net.minecraft is game code; the loader and its libraries must
+            // stay with the parent class loader.
+            return stream.filter(p -> p.getFileName().toString().endsWith(".jar"))
+                    .filter(FerroBootstrap::holdsGameClasses)
+                    .sorted()
+                    .toList();
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    private static boolean holdsGameClasses(Path jar) {
+        try (var zip = new java.util.zip.ZipFile(jar.toFile())) {
+            return zip.getEntry("net/minecraft/client/Minecraft.class") != null;
+        } catch (IOException notAJar) {
+            return false;
         }
     }
 
@@ -72,7 +85,11 @@ public final class FerroBootstrap {
         ClassLoader loader = new Knot(EnvType.CLIENT)
                 .init(new String[] {"--gameDir", gameDir().toString()});
         gameLoader = loader;
-        FabricLoaderImpl.INSTANCE.invokeEntrypoints("main", ModInitializer.class, ModInitializer::onInitialize);
+        try {
+            FabricLoaderImpl.INSTANCE.invokeEntrypoints("main", ModInitializer.class, ModInitializer::onInitialize);
+        } catch (Throwable failure) {
+            throw new IllegalStateException(dev.ferroloom.api.Errors.describe(failure), failure);
+        }
         return dev.ferroloom.api.FerroRegistrations.report();
     }
 
