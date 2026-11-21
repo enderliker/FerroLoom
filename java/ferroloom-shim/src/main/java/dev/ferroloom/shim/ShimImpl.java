@@ -11,6 +11,7 @@ import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 
 /** Hand-written bodies the generated shim classes call; never Mojang code. */
@@ -98,5 +99,41 @@ public final class ShimImpl {
 
     public static Screen screen(Gui self) {
         return null;
+    }
+
+    public static Identifier identifierFrom(String namespace, String path) {
+        Identifier identifier = new Identifier();
+        identifier.namespace = namespace == null || namespace.isEmpty() ? "minecraft" : namespace;
+        identifier.path = path == null ? "" : path;
+        return identifier;
+    }
+
+    public static Identifier identifierParse(String value) {
+        int colon = value.indexOf(':');
+        return colon < 0
+                ? identifierFrom("minecraft", value)
+                : identifierFrom(value.substring(0, colon), value.substring(colon + 1));
+    }
+
+    public static String identifierNamespace(Identifier self) {
+        return self.namespace;
+    }
+
+    public static String identifierPath(Identifier self) {
+        return self.path;
+    }
+
+    public static String identifierToString(Identifier self) {
+        return self.namespace + ":" + self.path;
+    }
+
+    public static boolean identifierEquals(Identifier self, Object other) {
+        return other instanceof Identifier identifier
+                && self.namespace.equals(identifier.namespace)
+                && self.path.equals(identifier.path);
+    }
+
+    public static int identifierHash(Identifier self) {
+        return 31 * self.namespace.hashCode() + self.path.hashCode();
     }
 }

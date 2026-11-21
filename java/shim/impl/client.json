@@ -6,7 +6,8 @@
     "net/minecraft/client/player/LocalPlayer",
     "net/minecraft/client/Options",
     "net/minecraft/client/OptionInstance",
-    "net/minecraft/client/gui/Gui"
+    "net/minecraft/client/gui/Gui",
+    "net/minecraft/resources/Identifier"
   ],
   "methods": {
     "net/minecraft/client/Minecraft#getInstance()Lnet/minecraft/client/Minecraft;": {"impl": "dev/ferroloom/shim/ShimImpl.getInstance"},
@@ -22,6 +23,13 @@
     "net/minecraft/client/OptionInstance#get()Ljava/lang/Object;": {"impl": "dev/ferroloom/shim/ShimImpl.optionGet"},
     "net/minecraft/client/OptionInstance#set(Ljava/lang/Object;)V": {"impl": "dev/ferroloom/shim/ShimImpl.optionSet"},
     "net/minecraft/util/Mth#clamp(DDD)D": {"impl": "dev/ferroloom/shim/ShimImpl.clamp"},
-    "net/minecraft/client/gui/Gui#screen()Lnet/minecraft/client/gui/screens/Screen;": {"impl": "dev/ferroloom/shim/ShimImpl.screen"}
+    "net/minecraft/client/gui/Gui#screen()Lnet/minecraft/client/gui/screens/Screen;": {"impl": "dev/ferroloom/shim/ShimImpl.screen"},
+    "net/minecraft/resources/Identifier#fromNamespaceAndPath(Ljava/lang/String;Ljava/lang/String;)Lnet/minecraft/resources/Identifier;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierFrom"},
+    "net/minecraft/resources/Identifier#parse(Ljava/lang/String;)Lnet/minecraft/resources/Identifier;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierParse"},
+    "net/minecraft/resources/Identifier#getNamespace()Ljava/lang/String;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierNamespace"},
+    "net/minecraft/resources/Identifier#getPath()Ljava/lang/String;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierPath"},
+    "net/minecraft/resources/Identifier#toString()Ljava/lang/String;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierToString"},
+    "net/minecraft/resources/Identifier#equals(Ljava/lang/Object;)Z": {"impl": "dev/ferroloom/shim/ShimImpl.identifierEquals"},
+    "net/minecraft/resources/Identifier#hashCode()I": {"impl": "dev/ferroloom/shim/ShimImpl.identifierHash"}
   }
 }

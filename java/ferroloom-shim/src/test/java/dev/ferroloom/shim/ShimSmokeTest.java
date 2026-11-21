@@ -11,6 +11,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import org.junit.jupiter.api.Test;
 
@@ -48,6 +49,19 @@ class ShimSmokeTest {
         ShimRuntime.updatePlayer(1.0, 2.0, 3.0);
         LocalPlayer p = new LocalPlayer();
         assertThrows(dev.ferroloom.runtime.FerroNotInCallbackException.class, p::getX);
+    }
+
+    @Test
+    void identifiers_compare_by_namespace_and_path() {
+        Identifier a = Identifier.fromNamespaceAndPath("fabric", "default");
+        Identifier b = Identifier.parse("fabric:default");
+
+        assertEquals("fabric", a.getNamespace());
+        assertEquals("default", a.getPath());
+        assertEquals("fabric:default", a.toString());
+        assertEquals(a, b);
+        assertEquals(a.hashCode(), b.hashCode());
+        assertEquals("minecraft", Identifier.parse("stone").getNamespace());
     }
 
     @Test
