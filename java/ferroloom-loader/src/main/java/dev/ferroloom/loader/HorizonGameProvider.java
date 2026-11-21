@@ -75,14 +75,60 @@ public final class HorizonGameProvider implements GameProvider {
         Path api = apiJar();
         if (api != null) {
             // FerroFabric-API's own code, under Fabric API's published package names: this is what
-            // satisfies `depends: fabric-api` (design §6.8, §D5).
+            // satisfies `depends: fabric-api` (design §6.8, §D5). The module ids it provides come
+            // from the jar's own fabric.mod.json, so the API repository stays the single source.
+            // One builtin per module id, all backed by the same jar: the real Fabric API does
+            // the same with its nested module jars. A builtin with `provides` is a bad fit here
+            // because Fabric Loader groups builtins by every provided id and preselects them
+            // once per id, which the resolver reports as a duplicate.
             ModMetadata apiMetadata = new BuiltinModMetadata.Builder("fabric-api", FABRIC_API_VERSION)
                     .setName("FerroFabric API")
                     .setEnvironment(ModEnvironment.CLIENT)
                     .build();
             mods.add(new BuiltinMod(List.of(api), apiMetadata));
+            for (String module : moduleIds(api)) {
+                ModMetadata moduleMetadata = new BuiltinModMetadata.Builder(module, FABRIC_API_VERSION)
+                        .setName(module)
+                        .setEnvironment(ModEnvironment.CLIENT)
+                        .build();
+                mods.add(new BuiltinMod(List.of(api), moduleMetadata));
+            }
         }
         return mods;
+    }
+
+    /**
+     * The `modules` array of a jar's `META-INF/ferrofabric/modules.json`, which is not a
+     * `fabric.mod.json`: Fabric Loader would discover that one on the class path and duplicate
+     * the builtin mod. Empty when unreadable.
+     */
+    static java.util.Set<String> moduleIds(Path jar) {
+        if (jar == null) return java.util.Set.of();
+        try (java.util.zip.ZipFile zip = new java.util.zip.ZipFile(jar.toFile())) {
+            java.util.zip.ZipEntry entry = zip.getEntry("META-INF/ferrofabric/modules.json");
+            if (entry == null) return java.util.Set.of();
+            try (java.io.InputStream in = zip.getInputStream(entry);
+                    java.io.Reader text = new java.io.InputStreamReader(
+                            in, java.nio.charset.StandardCharsets.UTF_8);
+                    net.fabricmc.loader.impl.lib.gson.JsonReader json =
+                            new net.fabricmc.loader.impl.lib.gson.JsonReader(text)) {
+                java.util.Set<String> provides = new java.util.LinkedHashSet<>();
+                json.beginObject();
+                while (json.hasNext()) {
+                    if (json.nextName().equals("modules")) {
+                        json.beginArray();
+                        while (json.hasNext()) provides.add(json.nextString());
+                        json.endArray();
+                    } else {
+                        json.skipValue();
+                    }
+                }
+                json.endObject();
+                return provides;
+            }
+        } catch (java.io.IOException | RuntimeException unreadable) {
+            return java.util.Set.of();
+        }
     }
 
     /** The staged FerroFabric-API jar, when the host found one (`-Dferro.apiJar`). */

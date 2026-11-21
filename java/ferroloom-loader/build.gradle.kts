@@ -26,7 +26,8 @@ dependencies {
     testImplementation(files(shimJar))
     testRuntimeOnly(files(shimJar))
     testRuntimeOnly(fileTree(rootProject.file(".runtime/fabric")) { include("*.jar") })
-    if (apiJar != null && apiJar.isFile) testImplementation(files(apiJar))
+    // The API jar is NOT on the test class path: FerroLoom adds it to Knot from -Dferro.apiJar,
+    // exactly like production. TestMods passes it to javac through ferro.testApiJar.
 }
 
 tasks.withType<JavaCompile> { options.release.set(25) }

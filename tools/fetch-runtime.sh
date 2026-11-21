@@ -24,6 +24,8 @@ for a in asm asm-analysis asm-commons asm-tree asm-util; do
 done
 get "$M/net/fabricmc/tiny-remapper/0.15.0/tiny-remapper-0.15.0.jar" "$FABRIC/tiny-remapper.jar"
 get "$M/net/fabricmc/tiny-mappings-parser/0.3.0+build.17/tiny-mappings-parser-0.3.0+build.17.jar" "$FABRIC/tiny-mappings-parser.jar"
+# Brigadier is what mods compile against for commands; the 26.3 game lists 1.3.11 (MIT).
+get "https://libraries.minecraft.net/com/mojang/brigadier/1.3.11/brigadier-1.3.11.jar" "$FABRIC/brigadier.jar"
 
 # Minecraft 26.3 is unobfuscated; the client jar is API metadata for the shim, never code.
 if [ ! -s "$MC/version.json" ]; then

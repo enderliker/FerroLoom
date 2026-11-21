@@ -35,9 +35,13 @@ as a target mod needs them and must compile against the shim (design ยง6.1 and ย
 2. **Key registration is idempotent per (mod, key).** Constructing a `KeyMapping` registers it,
    and `KeyMappingHelper.registerKeyMapping` confirms the same binding, so either pattern works
    and the first binding (with its real default key) wins.
-3. **The builtin mod id is `fabric-api`, version `26.3-ferro.1`.** The provider adds the jar to
-   Knot and to the mod list as a `BuiltinMod` (`-Dferro.apiJar`), so a mod's
-   `depends: fabric-api` resolves without the jar being copied into the mods folder.
+3. **The builtin mods are `fabric-api` and one per module, all version `26.3-ferro.1`.** The
+   provider adds the jar to Knot once and to the mod list as one `BuiltinMod` per id: `fabric-api`
+   plus every module named in the jar's `META-INF/ferrofabric/modules.json`, so a mod's
+   `depends: fabric-api` or `depends: fabric-lifecycle-events-v1` resolves without the jar being
+   copied into the mods folder. They are separate builtins rather than one `provides` list because
+   Fabric Loader groups a builtin under every provided id and preselects it once per id, which the
+   resolver reports as a duplicate mod.
 4. **No classpath mod discovery is relied on.** The API jar is not in the mods folder; it is
    compiled and staged separately, which keeps Fabric Loader's mod list deterministic.
 

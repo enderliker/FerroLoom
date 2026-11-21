@@ -47,8 +47,11 @@ public final class TestMods {
         Files.createDirectories(src.getParent());
         Files.writeString(src, source);
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+        String classpath = System.getProperty("java.class.path");
+        String apiJar = System.getProperty("ferro.testApiJar", "");
+        if (!apiJar.isBlank()) classpath += java.io.File.pathSeparator + apiJar;
         int rc = compiler.run(null, null, null, "--release", "25", "-classpath",
-                System.getProperty("java.class.path"), "-d", classes.toString(), src.toString());
+                classpath, "-d", classes.toString(), src.toString());
         if (rc != 0) throw new IllegalStateException("test mod failed to compile: " + className);
 
         String entryJson = entrypoints.entrySet().stream()

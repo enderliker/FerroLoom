@@ -14,6 +14,7 @@ cp "$REPO/java/ferroloom-loader/build/libs/ferroloom-loader.jar" "$LIB/"
 cp "$REPO/java/ferroloom-shim/build/libs/ferroloom-shim.jar" "$LIB/ferro-shim.jar"
 cp "$FABRIC/fabric-loader-0.20.1.jar" "$FABRIC/sponge-mixin.jar" "$FABRIC/mixinextras.jar" "$LIB/"
 cp "$FABRIC"/asm*.jar "$LIB/"
+cp "$FABRIC/brigadier.jar" "$LIB/"
 
 bash "$REPO/examples/example-mod/build.sh"
 cp "$REPO/examples/example-mod/build/ferroloom-example-1.0.0.jar" "$MODS/"
