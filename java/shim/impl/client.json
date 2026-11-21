@@ -8,29 +8,88 @@
     "net/minecraft/client/OptionInstance",
     "net/minecraft/client/gui/Gui",
     "net/minecraft/resources/Identifier",
-    "net/minecraft/client/multiplayer/ClientLevel"
+    "net/minecraft/client/multiplayer/ClientLevel",
+    "com/mojang/blaze3d/platform/InputConstants$Key",
+    "net/minecraft/client/KeyMapping$Category"
   ],
   "methods": {
-    "net/minecraft/client/Minecraft#getInstance()Lnet/minecraft/client/Minecraft;": {"impl": "dev/ferroloom/shim/ShimImpl.getInstance"},
-    "net/minecraft/client/Camera#tickFov()V": {"impl": "dev/ferroloom/shim/ShimImpl.tickFov"},
-    "net/minecraft/client/Camera#calculateFov(F)F": {"impl": "dev/ferroloom/shim/ShimImpl.calculateFov"},
-    "net/minecraft/client/Camera#getFov()F": {"impl": "dev/ferroloom/shim/ShimImpl.fov"},
-    "net/minecraft/world/entity/Entity#getX()D": {"impl": "dev/ferroloom/shim/ShimImpl.posX"},
-    "net/minecraft/world/entity/Entity#getY()D": {"impl": "dev/ferroloom/shim/ShimImpl.posY"},
-    "net/minecraft/world/entity/Entity#getZ()D": {"impl": "dev/ferroloom/shim/ShimImpl.posZ"},
-    "net/minecraft/client/KeyMapping#<init>(Ljava/lang/String;Lcom/mojang/blaze3d/platform/InputConstants$Type;ILnet/minecraft/client/KeyMapping$Category;)V": {"impl": "dev/ferroloom/shim/ShimImpl.keyMappingInit"},
-    "net/minecraft/client/KeyMapping#isDown()Z": {"impl": "dev/ferroloom/shim/ShimImpl.keyMappingDown"},
-    "net/minecraft/client/Options#sensitivity()Lnet/minecraft/client/OptionInstance;": {"impl": "dev/ferroloom/shim/ShimImpl.sensitivity"},
-    "net/minecraft/client/OptionInstance#get()Ljava/lang/Object;": {"impl": "dev/ferroloom/shim/ShimImpl.optionGet"},
-    "net/minecraft/client/OptionInstance#set(Ljava/lang/Object;)V": {"impl": "dev/ferroloom/shim/ShimImpl.optionSet"},
-    "net/minecraft/util/Mth#clamp(DDD)D": {"impl": "dev/ferroloom/shim/ShimImpl.clamp"},
-    "net/minecraft/client/gui/Gui#screen()Lnet/minecraft/client/gui/screens/Screen;": {"impl": "dev/ferroloom/shim/ShimImpl.screen"},
-    "net/minecraft/resources/Identifier#fromNamespaceAndPath(Ljava/lang/String;Ljava/lang/String;)Lnet/minecraft/resources/Identifier;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierFrom"},
-    "net/minecraft/resources/Identifier#parse(Ljava/lang/String;)Lnet/minecraft/resources/Identifier;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierParse"},
-    "net/minecraft/resources/Identifier#getNamespace()Ljava/lang/String;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierNamespace"},
-    "net/minecraft/resources/Identifier#getPath()Ljava/lang/String;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierPath"},
-    "net/minecraft/resources/Identifier#toString()Ljava/lang/String;": {"impl": "dev/ferroloom/shim/ShimImpl.identifierToString"},
-    "net/minecraft/resources/Identifier#equals(Ljava/lang/Object;)Z": {"impl": "dev/ferroloom/shim/ShimImpl.identifierEquals"},
-    "net/minecraft/resources/Identifier#hashCode()I": {"impl": "dev/ferroloom/shim/ShimImpl.identifierHash"}
+    "net/minecraft/client/Minecraft#getInstance()Lnet/minecraft/client/Minecraft;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.getInstance"
+    },
+    "net/minecraft/client/Camera#tickFov()V": {
+      "impl": "dev/ferroloom/shim/ShimImpl.tickFov"
+    },
+    "net/minecraft/client/Camera#calculateFov(F)F": {
+      "impl": "dev/ferroloom/shim/ShimImpl.calculateFov"
+    },
+    "net/minecraft/client/Camera#getFov()F": {
+      "impl": "dev/ferroloom/shim/ShimImpl.fov"
+    },
+    "net/minecraft/world/entity/Entity#getX()D": {
+      "impl": "dev/ferroloom/shim/ShimImpl.posX"
+    },
+    "net/minecraft/world/entity/Entity#getY()D": {
+      "impl": "dev/ferroloom/shim/ShimImpl.posY"
+    },
+    "net/minecraft/world/entity/Entity#getZ()D": {
+      "impl": "dev/ferroloom/shim/ShimImpl.posZ"
+    },
+    "net/minecraft/client/KeyMapping#<init>(Ljava/lang/String;Lcom/mojang/blaze3d/platform/InputConstants$Type;ILnet/minecraft/client/KeyMapping$Category;)V": {
+      "impl": "dev/ferroloom/shim/ShimImpl.keyMappingInit"
+    },
+    "net/minecraft/client/KeyMapping#isDown()Z": {
+      "impl": "dev/ferroloom/shim/ShimImpl.keyMappingDown"
+    },
+    "net/minecraft/client/Options#sensitivity()Lnet/minecraft/client/OptionInstance;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.sensitivity"
+    },
+    "net/minecraft/client/OptionInstance#get()Ljava/lang/Object;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.optionGet"
+    },
+    "net/minecraft/client/OptionInstance#set(Ljava/lang/Object;)V": {
+      "impl": "dev/ferroloom/shim/ShimImpl.optionSet"
+    },
+    "net/minecraft/util/Mth#clamp(DDD)D": {
+      "impl": "dev/ferroloom/shim/ShimImpl.clamp"
+    },
+    "net/minecraft/client/gui/Gui#screen()Lnet/minecraft/client/gui/screens/Screen;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.screen"
+    },
+    "net/minecraft/resources/Identifier#fromNamespaceAndPath(Ljava/lang/String;Ljava/lang/String;)Lnet/minecraft/resources/Identifier;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.identifierFrom"
+    },
+    "net/minecraft/resources/Identifier#parse(Ljava/lang/String;)Lnet/minecraft/resources/Identifier;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.identifierParse"
+    },
+    "net/minecraft/resources/Identifier#getNamespace()Ljava/lang/String;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.identifierNamespace"
+    },
+    "net/minecraft/resources/Identifier#getPath()Ljava/lang/String;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.identifierPath"
+    },
+    "net/minecraft/resources/Identifier#toString()Ljava/lang/String;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.identifierToString"
+    },
+    "net/minecraft/resources/Identifier#equals(Ljava/lang/Object;)Z": {
+      "impl": "dev/ferroloom/shim/ShimImpl.identifierEquals"
+    },
+    "net/minecraft/resources/Identifier#hashCode()I": {
+      "impl": "dev/ferroloom/shim/ShimImpl.identifierHash"
+    },
+    "com/mojang/blaze3d/platform/InputConstants$Key#getName()Ljava/lang/String;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.inputKeyName"
+    },
+    "com/mojang/blaze3d/platform/InputConstants$Key#getType()Lcom/mojang/blaze3d/platform/InputConstants$Type;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.inputKeyType"
+    },
+    "com/mojang/blaze3d/platform/InputConstants$Key#getValue()I": {
+      "impl": "dev/ferroloom/shim/ShimImpl.inputKeyValue"
+    },
+    "com/mojang/blaze3d/platform/InputConstants$Type#getOrCreate(I)Lcom/mojang/blaze3d/platform/InputConstants$Key;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.typeGetOrCreate"
+    },
+    "net/minecraft/client/KeyMapping$Category#register(Lnet/minecraft/resources/Identifier;)Lnet/minecraft/client/KeyMapping$Category;": {
+      "impl": "dev/ferroloom/shim/ShimImpl.categoryRegister"
+    }
   }
 }

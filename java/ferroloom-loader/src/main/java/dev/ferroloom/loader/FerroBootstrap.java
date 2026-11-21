@@ -152,6 +152,11 @@ public final class FerroBootstrap {
         invoke(gameMethod("onKey", String.class, String.class, boolean.class), modId, keyId, down);
     }
 
+    public static void setKeyBinding(String modId, String keyId, String name) {
+        invoke(gameMethod("setKeyBinding", String.class, String.class, String.class),
+                modId, keyId, name);
+    }
+
     public static boolean onCommand(String command) {
         Object handled = invoke(gameMethod("onCommand", String.class), command);
         return handled instanceof Boolean value && value;

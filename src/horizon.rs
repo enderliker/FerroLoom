@@ -289,6 +289,21 @@ pub fn client_setup(host: &mut dyn ClientHost) {
     }
 }
 
+fn send_key_binding(jvm: &Jvm, key: &crate::bridge::registrations::KeyRequest, bound: &str) {
+    if let Err(error) = jvm.call_static_void(
+        "dev/ferroloom/loader/FerroBootstrap",
+        "setKeyBinding",
+        "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V",
+        &[
+            Arg::Text(key.mod_id.clone()),
+            Arg::Text(key.key_id.clone()),
+            Arg::Text(bound.to_string()),
+        ],
+    ) {
+        log_line(&format!("key binding dispatch failed: {error}"));
+    }
+}
+
 fn send_key(jvm: &Jvm, key: &crate::bridge::registrations::KeyRequest, down: bool) {
     if let Err(error) = jvm.call_static_void(
         "dev/ferroloom/loader/FerroBootstrap",
@@ -393,6 +408,10 @@ fn dispatch_keys(jvm: &Jvm, host: &mut dyn ClientHost) {
     states.resize(registrations.keys.len(), false);
     for (index, key) in registrations.keys.iter().enumerate() {
         let mapping = format!("{}_{}", key.mod_id, key.key_id);
+        // The player may rebind the key in Controls; push the name so getBoundKeyOf sees it.
+        if let Some((bound, _modifiers)) = host.mod_key("ferroloom", &mapping) {
+            send_key_binding(jvm, key, &bound);
+        }
         let was = states[index];
         let down = host.is_down("ferroloom", &mapping);
         let clicked = host.consume_click("ferroloom", &mapping);

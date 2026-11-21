@@ -17,6 +17,7 @@ public final class ShimRuntime {
     private static float fovBase = 1.0f;
     private static ClientLevel level;
     private static final Map<String, Boolean> KEYS = new ConcurrentHashMap<>();
+    private static final Map<String, String> BOUND_KEYS = new ConcurrentHashMap<>();
 
     private ShimRuntime() {}
 
@@ -88,6 +89,16 @@ public final class ShimRuntime {
     /** The pushed state of a mod's key, looked up by its translation key (`key.zoomx.zoom`). */
     public static boolean keyDown(String translationKey) {
         return Boolean.TRUE.equals(KEYS.get(stateId(keyModId(translationKey), keyId(translationKey))));
+    }
+
+    /** The key the player's Controls binding names, as the engine reports it each tick. */
+    public static void setBoundKey(String modId, String keyId, String name) {
+        BOUND_KEYS.put(stateId(modId, keyId), name);
+    }
+
+    /** The pushed binding name, or null when the engine has not reported one. */
+    public static String boundKey(String translationKey) {
+        return BOUND_KEYS.get(stateId(keyModId(translationKey), keyId(translationKey)));
     }
 
     /** The id the Registrar and the engine use: `<mod>_<key>`. */

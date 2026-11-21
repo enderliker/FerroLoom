@@ -34,9 +34,10 @@ as a target mod needs them and must compile against the shim (design ยง6.1 and ย
    entrypoint to run there. `FerroBootstrap.start` invokes `main` and then `client` entrypoints
    before returning the registration report; `client_setup` only records that the client half is
    ready.
-2. **Key registration is idempotent per (mod, key).** Constructing a `KeyMapping` registers it,
-   and `KeyMappingHelper.registerKeyMapping` confirms the same binding, so either pattern works
-   and the first binding (with its real default key) wins.
+2. **Key registration is explicit and single.** Constructing a `KeyMapping` only models it;
+   `KeyMappingHelper.registerKeyMapping` registers it with the Registrar and throws
+   `IllegalArgumentException` on a duplicate (mod, key), as upstream. `getBoundKeyOf` returns the
+   key the player's Controls binding names: the engine pushes `ClientHost::mod_key` every tick.
 3. **The builtin mods are `fabric-api` and one per module, all version `26.3-ferro.1`.** The
    provider adds the jar to Knot once and to the mod list as one `BuiltinMod` per id: `fabric-api`
    plus every module named in the jar's `META-INF/ferrofabric/modules.json`, so a mod's

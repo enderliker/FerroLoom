@@ -71,7 +71,11 @@ class ShimSmokeTest {
                 InputConstants$Type.KEYBOARD, 25, null);
         KeyMapping other = new KeyMapping("key.other.zoom",
                 InputConstants$Type.KEYBOARD, 6, null);
+        assertTrue(dev.ferroloom.api.FerroRegistrations.report().isEmpty(),
+                "the constructor must not register");
 
+        ShimImpl.ensureRegistered(zoom);
+        ShimImpl.ensureRegistered(other);
         String report = dev.ferroloom.api.FerroRegistrations.report();
         assertTrue(report.contains("KEY\ttestmod\tzoom\tkey.keyboard.v"), report);
         assertTrue(report.contains("KEY\tother\tzoom\tkey.keyboard.c"), report);

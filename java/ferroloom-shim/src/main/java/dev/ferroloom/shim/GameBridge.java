@@ -59,6 +59,10 @@ public final class GameBridge {
         }
     }
 
+    public static void setKeyBinding(String modId, String keyId, String name) {
+        ShimRuntime.setBoundKey(modId, keyId, name);
+    }
+
     public static void onKey(String modId, String keyId, boolean down) {
         ShimRuntime.setKey(modId, keyId, down);
         for (FerroEvents.KeyListener listener : List.copyOf(FerroEvents.KEYS)) {
