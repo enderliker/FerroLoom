@@ -240,6 +240,37 @@ public final class TestMods {
                 Map.of("client", "clientkey.Entry"), null);
     }
 
+    /** A client mod that records every lifecycle event it receives, in order. */
+    public static Path lifecycleJar(Path modsDir) throws IOException {
+        String source = """
+                package lifecycle;
+                public final class Entry implements net.fabricmc.api.ClientModInitializer {
+                    private static void add(String event) {
+                        System.setProperty("test.lifecycle",
+                                System.getProperty("test.lifecycle", "") + event + ";");
+                    }
+                    @Override public void onInitializeClient() {
+                        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
+                                .CLIENT_STARTED.register(client -> add("STARTED"));
+                        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents
+                                .CLIENT_STOPPING.register(client -> add("STOPPING"));
+                        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents
+                                .AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> add("LEVEL"));
+                        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+                                .START_CLIENT_TICK.register(client -> add("TICK_START"));
+                        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+                                .END_CLIENT_TICK.register(client -> add("TICK_END"));
+                        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+                                .START_LEVEL_TICK.register(level -> add("LEVEL_TICK_START"));
+                        net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents
+                                .END_LEVEL_TICK.register(level -> add("LEVEL_TICK_END"));
+                    }
+                }
+                """;
+        return jar(modsDir, "lifecycle", "lifecycle.Entry", source,
+                Map.of("client", "lifecycle.Entry"), null, "\"fabric-lifecycle-events-v1\":\"*\"");
+    }
+
     /** A client mod that depends on `fabric-api` and uses KeyMappingHelper and ClientTickEvents. */
     public static Path apiKeyJar(Path modsDir) throws IOException {
         String source = """

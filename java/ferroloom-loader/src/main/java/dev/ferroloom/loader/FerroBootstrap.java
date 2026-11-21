@@ -164,6 +164,35 @@ public final class FerroBootstrap {
 
     public static void onClientSetup() {
         invoke(gameMethod("onClientSetup"), new Object[0]);
+        forwardFabricApi("onClientSetup");
+    }
+
+    public static void onClientStopping() {
+        forwardFabricApi("onClientStopping");
+    }
+
+    public static void onClientLevelLoad(String dimension) {
+        invoke(gameMethod("onClientLevelLoad", String.class), dimension);
+        forwardFabricApi("onClientLevelLoad");
+    }
+
+    public static void onClientLevelUnload(String dimension) {
+        invoke(gameMethod("onClientLevelUnload", String.class), dimension);
+        forwardFabricApi("onClientLevelUnload");
+    }
+
+    /** Forwards a lifecycle hook to FerroFabric-API when a jar was configured. */
+    private static void forwardFabricApi(String method) {
+        String configured = System.getProperty("ferro.apiJar");
+        if (configured == null || !Files.isRegularFile(Path.of(configured))) return;
+        try {
+            Class<?> api = Class.forName("dev.ferroloom.fabric.impl.FerroFabricApi", true, gameLoader());
+            api.getMethod(method).invoke(null);
+        } catch (ClassNotFoundException absent) {
+            // No API jar: nothing to forward.
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            dev.ferroloom.api.FerroApi.log("fabric-api: " + method + " failed: " + failure);
+        }
     }
 
     private static Method gameMethod(String name, Class<?>... parameters) {

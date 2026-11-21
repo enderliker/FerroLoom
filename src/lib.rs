@@ -15,7 +15,8 @@ mod tests;
 
 use mod_api::runtime::Flow;
 use mod_api::{
-    ClientHost, ClientSetupEvent, ClientTickPreEvent, CommandEvent, ComputeFovModifierEvent,
+    ClientHost, ClientLevelLoadEvent, ClientLevelUnloadEvent, ClientSetupEvent,
+    ClientStoppingEvent, ClientTickPreEvent, CommandEvent, ComputeFovModifierEvent,
     GuiLayerDrawEvent, Hooks, RegisterGuiLayersEvent, Registrar, RegistrationContext,
 };
 
@@ -34,6 +35,31 @@ impl Hooks for Mod {
     fn client_setup(&self, _host: &mut dyn ClientHost, _event: &mut ClientSetupEvent) {
         #[cfg(not(target_arch = "wasm32"))]
         horizon::client_setup(_host);
+    }
+
+    fn client_stopping(&self, host: &mut dyn ClientHost, _event: &mut ClientStoppingEvent) {
+        #[cfg(not(target_arch = "wasm32"))]
+        horizon::client_stopping(host);
+        #[cfg(target_arch = "wasm32")]
+        let _ = host;
+    }
+
+    fn client_level_load(&self, host: &mut dyn ClientHost, event: &mut ClientLevelLoadEvent<'_>) {
+        #[cfg(not(target_arch = "wasm32"))]
+        horizon::client_level_load(host, event.dimension);
+        #[cfg(target_arch = "wasm32")]
+        let _ = (host, event);
+    }
+
+    fn client_level_unload(
+        &self,
+        host: &mut dyn ClientHost,
+        event: &mut ClientLevelUnloadEvent<'_>,
+    ) {
+        #[cfg(not(target_arch = "wasm32"))]
+        horizon::client_level_unload(host, event.dimension);
+        #[cfg(target_arch = "wasm32")]
+        let _ = (host, event);
     }
 
     fn compute_fov_modifier(

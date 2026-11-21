@@ -7,7 +7,8 @@
     "net/minecraft/client/Options",
     "net/minecraft/client/OptionInstance",
     "net/minecraft/client/gui/Gui",
-    "net/minecraft/resources/Identifier"
+    "net/minecraft/resources/Identifier",
+    "net/minecraft/client/multiplayer/ClientLevel"
   ],
   "methods": {
     "net/minecraft/client/Minecraft#getInstance()Lnet/minecraft/client/Minecraft;": {"impl": "dev/ferroloom/shim/ShimImpl.getInstance"},

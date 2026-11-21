@@ -3,6 +3,7 @@ package dev.ferroloom.shim;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Camera;
+import net.minecraft.client.multiplayer.ClientLevel;
 
 /** The state the engine pushes into the shim before each hook call. */
 public final class ShimRuntime {
@@ -14,6 +15,7 @@ public final class ShimRuntime {
     private static double playerY;
     private static double playerZ;
     private static float fovBase = 1.0f;
+    private static ClientLevel level;
     private static final Map<String, Boolean> KEYS = new ConcurrentHashMap<>();
 
     private ShimRuntime() {}
@@ -64,6 +66,18 @@ public final class ShimRuntime {
     public static Camera camera() {
         if (camera == null) camera = new Camera();
         return camera;
+    }
+
+    public static void installLevel(ClientLevel value) {
+        level = value;
+    }
+
+    public static void clearLevel() {
+        level = null;
+    }
+
+    public static ClientLevel level() {
+        return level;
     }
 
     /** Records the engine's current state for the key a mod registered (ids as in the report). */

@@ -11,6 +11,7 @@ import net.minecraft.client.OptionInstance;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 
@@ -99,6 +100,11 @@ public final class ShimImpl {
 
     public static Screen screen(Gui self) {
         return null;
+    }
+
+    /** A level object for the lifecycle events; the dimension is carried by the event, not read. */
+    public static ClientLevel clientLevel(String dimension) {
+        return new ClientLevel();
     }
 
     public static Identifier identifierFrom(String namespace, String path) {

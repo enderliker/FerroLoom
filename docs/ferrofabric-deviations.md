@@ -20,9 +20,11 @@ as a target mod needs them and must compile against the shim (design ยง6.1 and ย
   Horizon key name. 26.3 uses SDL/HID scancodes, so `6` is `key.keyboard.c` and `25` is
   `key.keyboard.v` (not GLFW's 67/86). The key appears in Options > Controls and can be rebound;
   the engine polls the player's binding.
-- **`fabric-lifecycle-events-v1`** (`ClientTickEvents.END_CLIENT_TICK`): fired from the engine's
-  client tick, after the pushed key state, through `FerroEvents`. `START_CLIENT_TICK`, world load
-  and unload events, and the server side are not present yet.
+- **`fabric-lifecycle-events-v1`**: `ClientTickEvents` (START/END client tick and level tick),
+  `ClientLifecycleEvents` (CLIENT_STARTED/CLIENT_STOPPING) and `ClientLevelEvents`
+  (AFTER_CLIENT_LEVEL_CHANGE, fired at `client_level_load`). The level object is a hollow model:
+  the dimension arrives in the hook, not through `ClientLevel` yet. Entity/chunk/block-entity
+  events and the server side are not present.
 
 ## Deviations that affect mods
 

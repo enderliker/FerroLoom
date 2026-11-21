@@ -220,6 +220,52 @@ pub fn compute_fov_modifier(event: &mut mod_api::ComputeFovModifierEvent<'_>) {
     }
 }
 
+pub fn client_stopping(host: &mut dyn ClientHost) {
+    log_line("client stopping");
+    lifecycle(host, "onClientStopping", "()V", &[]);
+}
+
+pub fn client_level_load(host: &mut dyn ClientHost, dimension: &str) {
+    log_line(&format!("client level load: {dimension}"));
+    lifecycle(
+        host,
+        "onClientLevelLoad",
+        "(Ljava/lang/String;)V",
+        &[Arg::Text(dimension.to_string())],
+    );
+}
+
+pub fn client_level_unload(host: &mut dyn ClientHost, dimension: &str) {
+    log_line(&format!("client level unload: {dimension}"));
+    lifecycle(
+        host,
+        "onClientLevelUnload",
+        "(Ljava/lang/String;)V",
+        &[Arg::Text(dimension.to_string())],
+    );
+}
+
+/// Runs a lifecycle hook on the JVM thread and drains what Java queued for the host.
+fn lifecycle(host: &mut dyn ClientHost, method: &str, signature: &str, args: &[Arg]) {
+    let Some(jvm) = JVM.get() else {
+        return;
+    };
+    let mut writes = WriteQueue::new();
+    let outcome = with_queue(&mut writes, || {
+        jvm.call_static_void(
+            "dev/ferroloom/loader/FerroBootstrap",
+            method,
+            signature,
+            args,
+        )
+    });
+    let mut sink = HostSink { host };
+    log_drain(writes.drain(&mut sink));
+    if let Err(error) = outcome {
+        log_line(&format!("{method} failed: {error}"));
+    }
+}
+
 pub fn client_setup(host: &mut dyn ClientHost) {
     let Some(jvm) = JVM.get() else {
         return;

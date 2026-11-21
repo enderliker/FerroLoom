@@ -9,6 +9,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.gui.Gui;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.GameRenderer;
 
@@ -100,6 +101,19 @@ public final class GameBridge {
         // The client entrypoints already ran during registration, where their keys could reach
         // the Registrar. This hook only records that the client half is ready.
         FerroApi.log("client setup: entrypoints ran at registration");
+    }
+
+    public static void onClientLevelLoad(String dimension) {
+        installClient();
+        ClientLevel level = ShimImpl.clientLevel(dimension);
+        ShimRuntime.installLevel(level);
+        ((Minecraft) ShimRuntime.client()).level = level;
+    }
+
+    public static void onClientLevelUnload(String dimension) {
+        ShimRuntime.clearLevel();
+        Minecraft minecraft = (Minecraft) ShimRuntime.client();
+        if (minecraft != null) minecraft.level = null;
     }
 
     public static List<String> failedListeners() {
