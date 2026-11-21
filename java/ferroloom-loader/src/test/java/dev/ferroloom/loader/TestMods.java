@@ -136,6 +136,8 @@ public final class TestMods {
                             cancellable = true)
                     private void divideFov(
                             org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Float> cir) {
+                        double x = net.minecraft.client.Minecraft.getInstance().player.getX();
+                        System.setProperty("test.fovcalc.x", Double.toString(x));
                         cir.setReturnValue(cir.getReturnValueF() / 3.0f);
                     }
                 }

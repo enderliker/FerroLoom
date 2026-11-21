@@ -236,7 +236,9 @@ pub fn client_setup(host: &mut dyn ClientHost) {
     let mut sink = HostSink { host };
     log_drain(writes.drain(&mut sink));
     match outcome {
-        Ok(()) => log_line("client setup: client entrypoints ran"),
+        // The Java side logs "client setup: entrypoints ran at registration"; a success line
+        // here would duplicate it and drift from docs/smoke.md.
+        Ok(()) => {}
         Err(error) => log_line(&format!("client setup failed: {error}")),
     }
 }

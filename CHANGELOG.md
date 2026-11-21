@@ -44,3 +44,6 @@ third-party Fabric mod, through Plans 1–3 of the design.
   `FerroUnimplementedException` naming the member.
 - FerroFabric-API is partial (three modules); the full fork is Plan 4.
 - No Java rendering: screens, world render events and most HUD APIs are absent.
+- ZoomX's `MouseHandler.onScroll` and `ItemInHandRenderer.submitHandsWithItems` mixins target
+  methods the engine never calls, so scroll zoom and hiding the hands are inert; the key/FOV
+  path works (`docs/ferrofabric-deviations.md`).

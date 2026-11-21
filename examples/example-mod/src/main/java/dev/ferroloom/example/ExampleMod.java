@@ -10,9 +10,9 @@ import net.minecraft.client.player.LocalPlayer;
 /**
  * The Plan 2 example: a real Fabric mod, unmodified by FerroLoom.
  *
- * <p>Registrations that the engine must know at startup (keys, commands) happen in the main
- * entrypoint because FerroLoom reads the registration report right after it; listeners are set up
- * in the client entrypoint, at client_setup. FerroFabric-API (Plan 4) removes this split.
+ * <p>Both entrypoints run at registration: FerroLoom reads the registration report after the
+ * client entrypoint too, so a key can be registered from either. Listeners are set up in the
+ * client entrypoint, which remains the normal Fabric place for them.
  */
 public final class ExampleMod implements ModInitializer, ClientModInitializer {
     @Override

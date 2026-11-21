@@ -41,6 +41,20 @@ as a target mod needs them and must compile against the shim (design §6.1 and �
 4. **No classpath mod discovery is relied on.** The API jar is not in the mods folder; it is
    compiled and staged separately, which keeps Fabric Loader's mod list deterministic.
 
+## Known inert mixins
+
+A mixin only runs when the engine calls the method it targets. ZoomX 26.3's
+`MouseHandler.onScroll(JDD)V` and `ItemInHandRenderer.submitHandsWithItems` mixins apply to shim
+methods the engine never calls, so scroll-to-zoom and hiding the hands do nothing; the key zoom
+and the `Camera.calculateFov` mixin work. The general `FerroUninvokedMixinWarning` of design §6.5
+and §8.1.6 is not implemented yet; until it is, this file names the known cases.
+
+## The FOV upcall is a callback window
+
+`GameBridge.computeFovModifier` enters the same read window as a tick, so a `calculateFov` mixin
+may read the position pushed before the tick. Outside the hook (and outside a tick), engine reads
+still fail with `FerroNotInCallbackException`.
+
 ## What is not here yet
 
 Screen API, rendering and HUD modules, item/registry modules, the resource loader, networking

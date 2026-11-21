@@ -46,9 +46,16 @@ public final class GameBridge {
     public static float computeFovModifier(float base, float tickDelta, boolean changingFov) {
         installClient();
         ShimRuntime.setFovBase(base);
-        Camera camera = ShimRuntime.camera();
-        camera.tickFov();
-        return camera.getFov();
+        // The FOV hook is an engine upcall: a mod's calculateFov mixin may read the pushed
+        // position there, so it runs inside the same callback window as a tick.
+        ShimRuntime.enterCallback();
+        try {
+            Camera camera = ShimRuntime.camera();
+            camera.tickFov();
+            return camera.getFov();
+        } finally {
+            ShimRuntime.exitCallback();
+        }
     }
 
     public static void onKey(String modId, String keyId, boolean down) {

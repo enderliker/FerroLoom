@@ -22,7 +22,10 @@ cp "$REPO/examples/example-mod/build/ferroloom-example-1.0.0.jar" "$MODS/"
 API_DIR="$REPO/../FerroFabric-API"
 if [ -x "$API_DIR/build.sh" ]; then
     bash "$API_DIR/build.sh" jar
-    API_JAR=$(ls "$API_DIR"/build/libs/ferrofabric-api-*.jar 2>/dev/null | head -1)
+    # The binary jar, never the sources jar: `ls | head -1` under the C locale sorts
+    # "-sources.jar" first, and an empty class path silently breaks the builtin mod.
+    API_JAR=$(find "$API_DIR/build/libs" -maxdepth 1 -name 'ferrofabric-api-*.jar' \
+        ! -name '*-sources.jar' 2>/dev/null | sort | tail -1)
     if [ -n "$API_JAR" ]; then
         cp "$API_JAR" "$LIB/ferrofabric-api.jar"
     fi

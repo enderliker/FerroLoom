@@ -20,7 +20,13 @@ class FovCalculateMixinTest {
         System.setProperty("ferro.gameDir", tmp.toString());
 
         FerroBootstrap.start();
+        FerroBootstrap.onTick(1, 42.5, 64.0, 0.0);
+        System.clearProperty("test.fovcalc.x");
 
-        assertEquals(1.0f / 3.0f, FerroBootstrap.computeFovModifier(1.0f, 0.0f, false), 0.0001f);
+        float modifier = FerroBootstrap.computeFovModifier(1.0f, 0.0f, false);
+
+        assertEquals(1.0f / 3.0f, modifier, 0.0001f);
+        // The FOV upcall is a callback window: a mixin may read the pushed position.
+        assertEquals("42.5", System.getProperty("test.fovcalc.x"));
     }
 }

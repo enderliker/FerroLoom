@@ -13,7 +13,7 @@ public final class ShimRuntime {
     private static double playerX;
     private static double playerY;
     private static double playerZ;
-    private static float fovBase;
+    private static float fovBase = 1.0f;
     private static final Map<String, Boolean> KEYS = new ConcurrentHashMap<>();
 
     private ShimRuntime() {}

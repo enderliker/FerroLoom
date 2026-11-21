@@ -122,6 +122,8 @@ public final class FerroBootstrap {
     private static void initFabricApi() {
         String configured = System.getProperty("ferro.apiJar");
         if (configured == null || configured.isBlank()) return;
+        // A normal Plan 2 launch has no API jar; do not call that a misconfiguration.
+        if (!Files.isRegularFile(Path.of(configured))) return;
         try {
             Class<?> api = Class.forName("dev.ferroloom.fabric.impl.FerroFabricApi", true, gameLoader());
             api.getMethod("init").invoke(null);

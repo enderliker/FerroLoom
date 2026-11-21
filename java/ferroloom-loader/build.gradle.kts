@@ -4,7 +4,14 @@ val loaderJar = rootProject.file(".runtime/fabric/fabric-loader-0.20.1.jar")
 val shimJar = project(":ferroloom-shim").layout.buildDirectory.file("generated/shim.jar")
 val shimModuleJar = project(":ferroloom-shim").layout.buildDirectory.file("libs/ferroloom-shim.jar")
 // The sibling API project is a development artefact; tests that need it skip when it is absent.
-val apiJar = rootProject.file("../../FerroFabric-API/build/libs/ferrofabric-api-26.3-ferro.1.jar")
+// -PferroApiJar (used by the API repo's CI) wins; otherwise take the newest binary jar, never the
+// sources jar, so a version bump does not turn the integration test into a silent skip.
+val apiDir = rootProject.file("../../FerroFabric-API/build/libs")
+val discoveredApiJar = apiDir.listFiles { file ->
+    file.isFile && file.name.startsWith("ferrofabric-api-") &&
+        file.name.endsWith(".jar") && !file.name.contains("-sources")
+}?.maxByOrNull { it.name }
+val apiJar = providers.gradleProperty("ferroApiJar").map { file(it) }.orNull ?: discoveredApiJar
 
 dependencies {
     implementation(project(":ferroloom-runtime"))
@@ -19,7 +26,7 @@ dependencies {
     testImplementation(files(shimJar))
     testRuntimeOnly(files(shimJar))
     testRuntimeOnly(fileTree(rootProject.file(".runtime/fabric")) { include("*.jar") })
-    if (apiJar.isFile) testImplementation(files(apiJar))
+    if (apiJar != null && apiJar.isFile) testImplementation(files(apiJar))
 }
 
 tasks.withType<JavaCompile> { options.release.set(25) }
@@ -32,5 +39,5 @@ tasks.test {
     systemProperty("ferro.shim.jar", shimModuleJar.get().asFile.absolutePath)
     // Tests read this only to decide whether the API integration test can run; they set
     // ferro.apiJar themselves, so the other tests see no API at all.
-    systemProperty("ferro.testApiJar", apiJar.absolutePath)
+    systemProperty("ferro.testApiJar", apiJar?.absolutePath ?: "")
 }
